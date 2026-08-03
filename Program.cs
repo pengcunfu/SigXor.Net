@@ -1,7 +1,7 @@
-using Avalonia;
+﻿using Avalonia;
 using System;
 
-namespace MouseClickVoice;
+namespace SigXor;
 
 internal static class Program
 {

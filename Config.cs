@@ -1,16 +1,16 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace MouseClickVoice
+namespace SigXor
 {
     public class Config
     {
         private static readonly string ConfigPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MouseClickVoice",
+            "SigXor",
             "config.json"
         );
 
@@ -167,7 +167,7 @@ namespace MouseClickVoice
         {
             var audioPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "MouseClickVoice",
+                "SigXor",
                 "Audio"
             );
 

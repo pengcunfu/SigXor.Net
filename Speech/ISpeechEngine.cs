@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 
-namespace MouseClickVoice
+namespace SigXor
 {
     public interface ISpeechEngine : IDisposable
     {

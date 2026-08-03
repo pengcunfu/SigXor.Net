@@ -1,10 +1,10 @@
-using System.Linq;
+﻿using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 
-namespace MouseClickVoice;
+namespace SigXor;
 
 public partial class App : Application
 {

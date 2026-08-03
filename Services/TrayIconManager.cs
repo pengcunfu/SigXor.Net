@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 
-namespace MouseClickVoice;
+namespace SigXor;
 
 public class TrayIconManager : IDisposable
 {
@@ -25,7 +25,7 @@ public class TrayIconManager : IDisposable
 
         _trayIcon = new TrayIcon
         {
-            ToolTipText = "语音输入",
+            ToolTipText = "SigXor",
             Icon = LoadTrayIcon(),
             Menu = menu,
             IsVisible = true
@@ -43,7 +43,7 @@ public class TrayIconManager : IDisposable
 
     public void SetServiceRunning(bool running)
     {
-        _trayIcon.ToolTipText = running ? "语音输入 - 服务运行中" : "语音输入 - 服务已停止";
+        _trayIcon.ToolTipText = running ? "SigXor - 服务运行中" : "SigXor - 服务已停止";
     }
 
     public void ShowBalloon(string title, string message)
@@ -53,7 +53,7 @@ public class TrayIconManager : IDisposable
 
     private static WindowIcon LoadTrayIcon()
     {
-        var assets = AssetLoader.Open(new Uri("avares://MouseClickVoice/icon.png"));
+        var assets = AssetLoader.Open(new Uri("avares://SigXor/icon.png"));
         return new WindowIcon(new Bitmap(assets));
     }
 

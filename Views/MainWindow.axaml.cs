@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -14,7 +14,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 
-namespace MouseClickVoice;
+namespace SigXor;
 
 public partial class MainWindow : Window
 {
@@ -769,7 +769,7 @@ public partial class MainWindow : Window
             e.Cancel = true;
             Hide();
             ShowInTaskbar = false;
-            ShowNotification("语音输入", "程序已最小化到托盘");
+            ShowNotification("SigXor", "程序已最小化到托盘");
         }
     }
 

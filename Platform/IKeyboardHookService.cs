@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace MouseClickVoice;
+namespace SigXor;
 
 public interface IKeyboardHookService : IDisposable
 {

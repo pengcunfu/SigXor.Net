@@ -1,4 +1,4 @@
-# 语音输入 (SigXor)
+﻿# SigXor
 
 一个支持右 Alt 快捷键激活语音输入的跨平台桌面应用程序，基于 **Avalonia UI**，使用阿里 **SenseVoice** 模型进行多语言语音识别。
 
@@ -60,7 +60,7 @@ dotnet publish -c Release -r osx-arm64 --self-contained true -p:PublishSingleFil
 
 ## 配置选项
 
-配置自动保存到 `%APPDATA%\MouseClickVoice\config.json`（Windows）或对应平台的用户目录。
+配置自动保存到 `%APPDATA%\SigXor\config.json`（Windows）或对应平台的用户目录。
 
 - 识别引擎 / 语言
 - 键盘模拟 / 剪贴板粘贴

@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.IO;
 using Microsoft.Win32;
 using System.Runtime.Versioning;
 
-namespace MouseClickVoice;
+namespace SigXor;
 
 public static class StartupHelper
 {
@@ -35,7 +35,7 @@ public static class StartupHelper
 internal static class WindowsStartupHelper
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string AppName = "MouseClickVoice";
+    private const string AppName = "SigXor";
 
     [SupportedOSPlatform("windows")]
     public static bool IsEnabled()
@@ -60,7 +60,7 @@ internal static class WindowsStartupHelper
         if (enabled)
         {
             var exePath = Environment.ProcessPath
-                ?? Path.Combine(AppContext.BaseDirectory, "MouseClickVoice");
+                ?? Path.Combine(AppContext.BaseDirectory, "SigXor");
             var command = silentOnAutoStart ? $"\"{exePath}\" --silent" : $"\"{exePath}\"";
             key.SetValue(AppName, command);
         }
@@ -75,7 +75,7 @@ internal static class LinuxStartupHelper
 {
     private static string DesktopFilePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".config", "autostart", "mouseclickvoice.desktop");
+            ".config", "autostart", "sigxor.desktop");
 
     public static bool IsEnabled() => File.Exists(DesktopFilePath);
 
@@ -84,7 +84,7 @@ internal static class LinuxStartupHelper
         if (enabled)
         {
             var exePath = Environment.ProcessPath
-                ?? Path.Combine(AppContext.BaseDirectory, "MouseClickVoice");
+                ?? Path.Combine(AppContext.BaseDirectory, "SigXor");
             var args = silentOnAutoStart ? " --silent" : "";
             var dir = Path.GetDirectoryName(DesktopFilePath)!;
             Directory.CreateDirectory(dir);
@@ -92,7 +92,7 @@ internal static class LinuxStartupHelper
                 $"""
                  [Desktop Entry]
                  Type=Application
-                 Name=语音输入
+                 Name=SigXor
                  Exec="{exePath}"{args}
                  X-GNOME-Autostart-enabled=true
                  """);
@@ -108,7 +108,7 @@ internal static class MacStartupHelper
 {
     private static string PlistPath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            "Library", "LaunchAgents", "com.mouseclickvoice.plist");
+            "Library", "LaunchAgents", "com.sigxor.plist");
 
     public static bool IsEnabled() => File.Exists(PlistPath);
 
@@ -117,7 +117,7 @@ internal static class MacStartupHelper
         if (enabled)
         {
             var exePath = Environment.ProcessPath
-                ?? Path.Combine(AppContext.BaseDirectory, "MouseClickVoice");
+                ?? Path.Combine(AppContext.BaseDirectory, "SigXor");
             var argsLine = silentOnAutoStart ? "    <string>--silent</string>\n" : "";
             var dir = Path.GetDirectoryName(PlistPath)!;
             Directory.CreateDirectory(dir);
@@ -127,7 +127,7 @@ internal static class MacStartupHelper
                  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
                  <plist version="1.0">
                  <dict>
-                   <key>Label</key><string>com.mouseclickvoice</string>
+                   <key>Label</key><string>com.sigxor</string>
                    <key>ProgramArguments</key>
                    <array>
                      <string>{exePath}</string>

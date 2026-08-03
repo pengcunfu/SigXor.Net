@@ -1,4 +1,4 @@
-using NAudio.Wave;
+﻿using NAudio.Wave;
 using NAudio.CoreAudioApi;
 using System;
 using System.Collections.Generic;
@@ -6,7 +6,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace MouseClickVoice
+namespace SigXor
 {
     public class AudioCapture : IDisposable
     {

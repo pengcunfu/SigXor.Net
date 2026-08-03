@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -10,7 +10,7 @@ using SharpCompress.Common;
 using SharpCompress.Readers;
 using SherpaOnnx;
 
-namespace MouseClickVoice
+namespace SigXor
 {
     public class SenseVoiceEngine : ISpeechEngine
     {

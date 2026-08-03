@@ -1,7 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="MouseClickVoice.MainWindow"
-        Title="语音输入" Height="480" Width="400"
+        x:Class="SigXor.MainWindow"
+        Title="SigXor" Height="480" Width="400"
         MinWidth="400" MinHeight="480"
         WindowStartupLocation="CenterScreen"
         Icon="/icon.png">
@@ -93,7 +93,7 @@
 
             <TabItem x:Name="AboutTabItem" Header="关于">
                 <StackPanel Margin="0,8,0,0" Spacing="12">
-                    <TextBlock Text="语音输入"
+                    <TextBlock Text="SigXor"
                                FontSize="22" FontWeight="Bold"/>
                     <TextBlock x:Name="VersionText"
                                Foreground="Gray" FontSize="13"/>

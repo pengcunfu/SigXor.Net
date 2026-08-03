@@ -1,4 +1,4 @@
-namespace MouseClickVoice;
+﻿namespace SigXor;
 
 public static class PlatformServices
 {

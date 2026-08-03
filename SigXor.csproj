@@ -5,8 +5,11 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyTitle>语音输入</AssemblyTitle>
+    <AssemblyTitle>SigXor</AssemblyTitle>
     <AssemblyDescription>右 Alt 快捷键语音输入程序</AssemblyDescription>
+    <Product>SigXor</Product>
+    <RootNamespace>SigXor</RootNamespace>
+    <AssemblyName>SigXor</AssemblyName>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <PublishSingleFile>true</PublishSingleFile>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
 
-namespace MouseClickVoice;
+namespace SigXor;
 
 public class TextSimulator
 {

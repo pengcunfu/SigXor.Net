@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 
-namespace MouseClickVoice;
+namespace SigXor;
 
 public partial class VoiceInputOverlay : Window
 {
@@ -28,7 +28,7 @@ public partial class VoiceInputOverlay : Window
 
     public void ShowRecording()
     {
-        StatusText.Text = "语音输入";
+        StatusText.Text = "SigXor";
         ShowOverlay();
         _waveTimer.Start();
     }

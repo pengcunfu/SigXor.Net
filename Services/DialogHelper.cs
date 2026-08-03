@@ -1,9 +1,9 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Avalonia.Controls;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
 
-namespace MouseClickVoice;
+namespace SigXor;
 
 public static class DialogHelper
 {
