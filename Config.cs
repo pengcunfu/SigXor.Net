@@ -45,6 +45,10 @@ namespace SigXor
         [JsonPropertyName("useClipboard")]
         public bool UseClipboard { get; set; } = true;
 
+        /// <summary>是否启用 Fn + ` 截屏快捷键（实际监听 ` 键）</summary>
+        [JsonPropertyName("enableScreenshotShortcut")]
+        public bool EnableScreenshotShortcut { get; set; } = true;
+
         // 应用程序设置
         [JsonPropertyName("silentStart")]
         public bool SilentStart { get; set; } = false;
@@ -151,6 +155,7 @@ namespace SigXor
             ConfidenceThreshold = 0.6;
             TypingDelay = 0.05;
             UseClipboard = true;
+            EnableScreenshotShortcut = true;
             SilentStart = false;
             MinimizeToTray = true;
             AutoStartWithWindows = false;

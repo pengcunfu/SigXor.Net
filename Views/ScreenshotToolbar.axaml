@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SigXor.ScreenshotToolbar"
+        Title="ScreenshotToolbar"
+        SystemDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ShowActivated="False"
+        Focusable="False"
+        CanResize="False"
+        WindowStartupLocation="Manual"
+        SizeToContent="WidthAndHeight">
+    <Border Background="#F01F1F1F"
+            CornerRadius="9"
+            Padding="8,6"
+            BoxShadow="0 3 14 0 #66000000">
+        <StackPanel Orientation="Horizontal" Spacing="5">
+            <Button x:Name="OcrButton" Content="OCR 识别" Padding="14,6" Click="OnOcrClick"/>
+            <Button x:Name="CopyButton" Content="复制图片" Padding="14,6" Click="OnCopyClick"/>
+            <Button x:Name="SaveButton" Content="保存" Padding="14,6" Click="OnSaveClick"/>
+            <Button x:Name="DoneButton" Content="完成" Padding="14,6" Click="OnDoneClick"/>
+        </StackPanel>
+    </Border>
+</Window>

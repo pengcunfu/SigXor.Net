@@ -46,7 +46,8 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <TextBlock Grid.Row="2" Text="使用说明：右 Alt 短按开始/再按结束（长录音），或按住右 Alt 松手结束（短句）"
+                    <TextBlock Grid.Row="2"
+                               Text="使用说明：右 Alt 短按开始/再按结束（长录音），或按住右 Alt 松手结束（短句）。&#10;截屏：Fn + ` 拖动选择区域，自动弹出工具条，支持 OCR 文字识别"
                                FontSize="12" Foreground="Gray"
                                TextWrapping="Wrap" Margin="0,12,0,0"/>
                 </Grid>
@@ -78,6 +79,9 @@
                         <CheckBox x:Name="UseClipboardCheckBox" Content="使用剪贴板粘贴"
                                   Margin="0,0,0,5" Checked="UseClipboardCheckBox_Changed"
                                   Unchecked="UseClipboardCheckBox_Changed"/>
+                        <CheckBox x:Name="ScreenshotShortcutCheckBox" Content="启用 Fn + ` 区域截屏（选区 + OCR）"
+                                  Margin="0,0,0,5" Checked="ScreenshotShortcutCheckBox_Changed"
+                                  Unchecked="ScreenshotShortcutCheckBox_Changed"/>
                         <CheckBox x:Name="SilentStartCheckBox" Content="开机自启动时静默（仅托盘，不显示窗口）"
                                   Margin="0,0,0,5" Checked="SilentStartCheckBox_Changed"
                                   Unchecked="SilentStartCheckBox_Changed"/>
@@ -101,7 +105,8 @@
                         基于 SenseVoice 的本地语音识别工具。<LineBreak/>
                         使用右 Alt 快捷键进行语音输入：<LineBreak/>
                         · 短按：开始/结束长录音<LineBreak/>
-                        · 按住：松手结束短句录音
+                        · 按住：松手结束短句录音<LineBreak/>
+                        Fn + ` 区域截屏：拖动选区，工具条支持 OCR 识别、复制、保存
                     </TextBlock>
                     <HyperlinkButton Content="官方文档"
                                      NavigateUri="https://my.feishu.cn/wiki/EyJswQiaBiaOlzkguzPc52mAn8b?from=from_copylink"

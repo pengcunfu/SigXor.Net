@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SigXor.RegionPreviewWindow"
+        Title="RegionPreviewWindow"
+        SystemDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ShowActivated="False"
+        Focusable="False"
+        CanResize="False"
+        WindowStartupLocation="Manual">
+    <Border BorderBrush="#E033A6FF" BorderThickness="1" Background="Transparent">
+        <Image x:Name="PreviewImage" Stretch="Fill"/>
+    </Border>
+</Window>

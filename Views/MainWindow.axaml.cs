@@ -12,6 +12,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 
 namespace SigXor;
@@ -34,10 +35,20 @@ public partial class MainWindow : Window
     private bool _isShortcutDown;
     private bool _altHoldTriggeredThisPress;
     private bool _keyboardToggleActive;
+    private bool _isCapturing;
+    private bool _ocrBusy;
+    private bool _wasMainWindowVisible;
     private RecordingTrigger _activeTrigger = RecordingTrigger.None;
     private readonly DispatcherTimer _statusTimer;
     private readonly Config _config;
     private CancellationTokenSource? _downloadCts;
+    private WriteableBitmap? _capturedFullScreen;
+    private WriteableBitmap? _capturedRegion;
+    private PixelRect _virtualBounds;
+    private RegionCaptureOverlay? _captureOverlay;
+    private RegionPreviewWindow? _previewWindow;
+    private ScreenshotToolbar? _screenshotToolbar;
+    private OcrEngine? _ocrEngine;
 
     public MainWindow()
     {
@@ -166,6 +177,7 @@ public partial class MainWindow : Window
 
                     ShowNotificationsCheckBox.IsChecked = _config.ShowNotifications;
                     UseClipboardCheckBox.IsChecked = _config.UseClipboard;
+                    ScreenshotShortcutCheckBox.IsChecked = _config.EnableScreenshotShortcut;
                     SilentStartCheckBox.IsChecked = _config.SilentStart;
                     MinimizeToTrayCheckBox.IsChecked = _config.MinimizeToTray;
 
@@ -197,9 +209,11 @@ public partial class MainWindow : Window
         {
             _keyboardHook = PlatformServices.CreateKeyboardHook();
             _keyboardHook.HoldThresholdMs = (int)(_config.AltHoldThreshold * 1000);
+            _keyboardHook.ScreenshotEnabled = _config.EnableScreenshotShortcut;
             _keyboardHook.ShortcutPressed += OnShortcutPressed;
             _keyboardHook.ShortcutReleased += OnShortcutReleased;
             _keyboardHook.ShortcutHoldDetected += OnShortcutHoldDetected;
+            _keyboardHook.ScreenshotShortcutPressed += OnScreenshotShortcutPressed;
 
             _audioCapture = new AudioCapture();
             _audioCapture.StatusChanged += OnAudioStatusChanged;
@@ -215,6 +229,9 @@ public partial class MainWindow : Window
             _trayIcon = new TrayIconManager();
             _trayIcon.ShowWindowRequested += (_, _) => ShowMainWindow();
             _trayIcon.ExitRequested += (_, _) => ExitApplication();
+
+            // 全局钩子随程序启动常驻：截屏快捷键不依赖语音服务是否运行
+            _keyboardHook.Start();
 
             RecognitionStatusText.Text = _keyboardHook.IsSupported
                 ? "已初始化"
@@ -300,7 +317,6 @@ public partial class MainWindow : Window
     {
         try
         {
-            _keyboardHook?.Stop();
             _audioCapture?.StopRecording();
 
             _isRecording = false;
@@ -331,6 +347,9 @@ public partial class MainWindow : Window
 
     private void OnShortcutPressed(object? sender, EventArgs e)
     {
+        if (!_serviceRunning)
+            return;
+
         _textSimulator?.CaptureTargetWindow();
         RunOnUiThread(() =>
         {
@@ -342,6 +361,9 @@ public partial class MainWindow : Window
 
     private void OnShortcutHoldDetected(object? sender, EventArgs e)
     {
+        if (!_serviceRunning)
+            return;
+
         RunOnUiThread(() =>
         {
             if (!_isShortcutDown || _isRecording)
@@ -355,6 +377,9 @@ public partial class MainWindow : Window
 
     private void OnShortcutReleased(object? sender, EventArgs e)
     {
+        if (!_serviceRunning)
+            return;
+
         RunOnUiThread(() =>
         {
             _isShortcutDown = false;
@@ -379,6 +404,271 @@ public partial class MainWindow : Window
                 _keyboardToggleActive = true;
             }
         });
+    }
+
+    private void OnScreenshotShortcutPressed(object? sender, EventArgs e)
+    {
+        try
+        {
+            Dispatcher.UIThread.Post(StartRegionCapture);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"截屏调度失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>进入区域截屏流程：隐藏主窗口 → 抓取整屏 → 显示选区覆盖层。</summary>
+    private async void StartRegionCapture()
+    {
+        if (_isCapturing || _isExiting)
+            return;
+
+        if (!ScreenshotHelper.IsSupported)
+        {
+            ShowNotification("截屏失败", "当前平台不支持截屏");
+            return;
+        }
+
+        _isCapturing = true;
+        try
+        {
+            _wasMainWindowVisible = IsVisible;
+            if (IsVisible)
+            {
+                Hide();
+                ShowInTaskbar = false;
+            }
+
+            // 等待主窗口真正从屏幕上消失，避免把自家窗口截进图里
+            if (_wasMainWindowVisible)
+                await Task.Delay(150);
+
+            var full = ScreenshotHelper.CaptureFullScreen();
+            if (full == null)
+            {
+                ShowNotification("截屏失败", "无法获取屏幕图像");
+                FinishRegionCapture(restoreWindow: true);
+                return;
+            }
+
+            if (_isCapturing)
+            {
+                _capturedFullScreen = full;
+                _virtualBounds = GetVirtualScreenBounds();
+
+                var overlay = new RegionCaptureOverlay(full, _virtualBounds, RenderScaling);
+                overlay.SelectionConfirmed += OnRegionConfirmed;
+                overlay.SelectionCancelled += OnRegionCancelled;
+                _captureOverlay = overlay;
+                overlay.Show();
+            }
+            else
+            {
+                full.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            _captureOverlay?.Close();
+            _captureOverlay = null;
+            _capturedFullScreen?.Dispose();
+            _capturedFullScreen = null;
+            _isCapturing = false;
+            RestoreMainWindowAfterCapture();
+            ShowNotification("截屏失败", ex.Message);
+        }
+    }
+
+    private void OnRegionConfirmed(object? sender, PixelRect rect)
+    {
+        try
+        {
+            if (_capturedFullScreen == null)
+            {
+                FinishRegionCapture(restoreWindow: true);
+                return;
+            }
+
+            var region = ScreenshotHelper.CropBitmap(_capturedFullScreen, rect);
+            _capturedFullScreen.Dispose();
+            _capturedFullScreen = null;
+
+            if (region == null)
+            {
+                ShowNotification("截屏失败", "无法裁剪选区");
+                FinishRegionCapture(restoreWindow: true);
+                return;
+            }
+
+            _capturedRegion?.Dispose();
+            _capturedRegion = region;
+
+            _captureOverlay?.Close();
+            _captureOverlay = null;
+
+            var screenRect = new PixelRect(
+                _virtualBounds.X + rect.X,
+                _virtualBounds.Y + rect.Y,
+                rect.Width,
+                rect.Height);
+
+            _previewWindow?.Close();
+            _previewWindow = new RegionPreviewWindow();
+            _previewWindow.ShowAt(region, screenRect, RenderScaling);
+
+            _screenshotToolbar?.Close();
+            _screenshotToolbar = new ScreenshotToolbar();
+            _screenshotToolbar.OcrRequested += OnToolbarOcrRequested;
+            _screenshotToolbar.CopyRequested += OnToolbarCopyRequested;
+            _screenshotToolbar.SaveRequested += OnToolbarSaveRequested;
+            _screenshotToolbar.CloseRequested += OnToolbarCloseRequested;
+            _screenshotToolbar.ShowAt(screenRect, Screens.All.ToArray());
+        }
+        catch (Exception ex)
+        {
+            ShowNotification("截屏失败", ex.Message);
+            FinishRegionCapture(restoreWindow: true);
+        }
+    }
+
+    private void OnRegionCancelled(object? sender, EventArgs e)
+    {
+        _captureOverlay?.Close();
+        _captureOverlay = null;
+        FinishRegionCapture(restoreWindow: true);
+    }
+
+    private async void OnToolbarOcrRequested(object? sender, EventArgs e)
+    {
+        var bitmap = _capturedRegion;
+        if (bitmap == null || _ocrBusy)
+            return;
+
+        _ocrBusy = true;
+        _screenshotToolbar?.SetBusy("准备中...");
+        try
+        {
+            _ocrEngine ??= new OcrEngine();
+            var text = await _ocrEngine.RecognizeAsync(bitmap,
+                msg => Dispatcher.UIThread.Post(() => _screenshotToolbar?.SetBusy(msg)));
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                ShowNotification("OCR", "未识别到文字");
+                return;
+            }
+
+            if (OperatingSystem.IsWindows())
+                WindowsClipboardHelper.SetText(text);
+            else
+                await CopyTextToClipboardAsync(text);
+
+            Dispatcher.UIThread.Post(() => LastRecognizedText.Text = text);
+            ShowNotification("OCR 识别完成", TruncateText(text, 60));
+        }
+        catch (Exception ex)
+        {
+            ShowNotification("OCR 识别失败", ex.Message);
+        }
+        finally
+        {
+            _ocrBusy = false;
+            _screenshotToolbar?.SetIdle();
+        }
+    }
+
+    private void OnToolbarCopyRequested(object? sender, EventArgs e)
+    {
+        var bitmap = _capturedRegion;
+        if (bitmap == null)
+            return;
+
+        if (ScreenshotHelper.CopyBitmapToClipboard(bitmap))
+            ShowNotification("已复制", "选区图片已复制到剪贴板");
+        else
+            ShowNotification("复制失败", "无法写入剪贴板");
+    }
+
+    private void OnToolbarSaveRequested(object? sender, EventArgs e)
+    {
+        var bitmap = _capturedRegion;
+        if (bitmap == null)
+            return;
+
+        try
+        {
+            var screenshotDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "SigXor",
+                "Screenshots");
+            Directory.CreateDirectory(screenshotDir);
+            var filePath = Path.Combine(screenshotDir,
+                $"screenshot_{DateTime.Now:yyyyMMdd_HHmmss_fff}.png");
+            bitmap.Save(filePath);
+            ShowNotification("已保存", filePath);
+        }
+        catch (Exception ex)
+        {
+            ShowNotification("保存失败", ex.Message);
+        }
+    }
+
+    private void OnToolbarCloseRequested(object? sender, EventArgs e)
+    {
+        if (_ocrBusy)
+            return;
+        FinishRegionCapture(restoreWindow: true);
+    }
+
+    private void FinishRegionCapture(bool restoreWindow)
+    {
+        _captureOverlay?.Close();
+        _captureOverlay = null;
+        _previewWindow?.Close();
+        _previewWindow = null;
+        _screenshotToolbar?.Close();
+        _screenshotToolbar = null;
+        _capturedFullScreen?.Dispose();
+        _capturedFullScreen = null;
+        _capturedRegion?.Dispose();
+        _capturedRegion = null;
+        _isCapturing = false;
+
+        if (restoreWindow)
+            RestoreMainWindowAfterCapture();
+    }
+
+    private void RestoreMainWindowAfterCapture()
+    {
+        if (_wasMainWindowVisible)
+            ShowMainWindow();
+    }
+
+    private PixelRect GetVirtualScreenBounds()
+    {
+        PixelRect? union = null;
+        foreach (var screen in Screens.All)
+        {
+            union = union.HasValue ? union.Value.Union(screen.Bounds) : screen.Bounds;
+        }
+
+        return union ?? Screens.Primary?.Bounds ?? new PixelRect(0, 0, 1920, 1080);
+    }
+
+    private async Task CopyTextToClipboardAsync(string text)
+    {
+        var clipboard = Clipboard ?? TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard == null)
+            throw new InvalidOperationException("无法访问剪贴板");
+        await clipboard.SetTextAsync(text);
+    }
+
+    private static string TruncateText(string text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+            return text;
+        return text.Substring(0, maxLength) + "…";
     }
 
     private void StartRecording(RecordingTrigger trigger)
@@ -705,6 +995,17 @@ public partial class MainWindow : Window
         _config.Save();
     }
 
+    private void ScreenshotShortcutCheckBox_Changed(object? sender, RoutedEventArgs e)
+    {
+        if (_isLoadingSettings || ScreenshotShortcutCheckBox == null)
+            return;
+
+        _config.EnableScreenshotShortcut = ScreenshotShortcutCheckBox.IsChecked == true;
+        _config.Save();
+        if (_keyboardHook != null)
+            _keyboardHook.ScreenshotEnabled = _config.EnableScreenshotShortcut;
+    }
+
     private void ShowNotification(string title, string message)
     {
         if (_config.ShowNotifications)
@@ -789,6 +1090,18 @@ public partial class MainWindow : Window
             _speechRecognizer?.Dispose();
             _voiceOverlay?.Close();
             _voiceOverlay = null;
+            _captureOverlay?.Close();
+            _captureOverlay = null;
+            _previewWindow?.Close();
+            _previewWindow = null;
+            _screenshotToolbar?.Close();
+            _screenshotToolbar = null;
+            _capturedFullScreen?.Dispose();
+            _capturedFullScreen = null;
+            _capturedRegion?.Dispose();
+            _capturedRegion = null;
+            _ocrEngine?.Dispose();
+            _ocrEngine = null;
             _trayIcon?.Dispose();
             _trayIcon = null;
             SpeechModelManager.ModelsChanged -= OnModelsChanged;

@@ -14,21 +14,34 @@ namespace SigXor
         private const int WmSyskeydown = 0x0104;
         private const int WmSyskeyup = 0x0105;
         private const int VkRMenu = 0xA5; // 右 Alt
+        private const uint VkOem3 = 0xC0; // ` ~ 键（笔记本 Fn 对系统不可见，实际以该键触发）
+        private const uint VkShift = 0x10;
+        private const uint VkControl = 0x11;
+        private const uint VkMenu = 0x12;
+        private const uint VkLWin = 0x5B;
+        private const uint VkRWin = 0x5C;
+        private const uint LlkhfInjected = 0x10; // 注入事件标志，避免吞掉程序自己输入的反引号
 
         private IntPtr _hookId = IntPtr.Zero;
         private readonly LowLevelKeyboardProc _proc;
         private bool _isHooked;
         private bool _isKeyDown;
+        private bool _screenshotKeyDown;
+        private bool _screenshotSuppressed;
         private CancellationTokenSource? _holdCts;
 
         /// <summary>按住超过该时长视为「长按模式」，否则为「点击切换」</summary>
         public int HoldThresholdMs { get; set; } = 400;
+
+        /// <summary>是否启用 Fn + ` 截屏快捷键</summary>
+        public bool ScreenshotEnabled { get; set; } = true;
 
         public bool IsSupported => true;
 
         public event EventHandler? ShortcutPressed;
         public event EventHandler? ShortcutReleased;
         public event EventHandler? ShortcutHoldDetected;
+        public event EventHandler? ScreenshotShortcutPressed;
 
         public KeyboardHook()
         {
@@ -59,6 +72,8 @@ namespace SigXor
             _hookId = IntPtr.Zero;
             _isHooked = false;
             _isKeyDown = false;
+            _screenshotKeyDown = false;
+            _screenshotSuppressed = false;
             CancelHoldTimer();
         }
 
@@ -69,6 +84,7 @@ namespace SigXor
                 var hookStruct = Marshal.PtrToStructure<KbdLlHookStruct>(lParam);
                 var isKeyDown = wParam == (IntPtr)WmKeydown || wParam == (IntPtr)WmSyskeydown;
                 var isKeyUp = wParam == (IntPtr)WmKeyup || wParam == (IntPtr)WmSyskeyup;
+                var isInjected = (hookStruct.flags & LlkhfInjected) != 0;
 
                 if (hookStruct.vkCode == VkRMenu)
                 {
@@ -85,10 +101,45 @@ namespace SigXor
                         ShortcutReleased?.Invoke(this, EventArgs.Empty);
                     }
                 }
+
+                if (!isInjected && hookStruct.vkCode == VkOem3)
+                {
+                    if (isKeyDown)
+                    {
+                        if (_screenshotSuppressed)
+                            return (IntPtr)1;
+
+                        if (!_screenshotKeyDown)
+                        {
+                            _screenshotKeyDown = true;
+                            if (ScreenshotEnabled && !IsAnyModifierDown())
+                            {
+                                _screenshotSuppressed = true;
+                                ScreenshotShortcutPressed?.Invoke(this, EventArgs.Empty);
+                                return (IntPtr)1;
+                            }
+                        }
+                    }
+                    else if (isKeyUp)
+                    {
+                        var wasSuppressed = _screenshotSuppressed;
+                        _screenshotKeyDown = false;
+                        _screenshotSuppressed = false;
+                        if (wasSuppressed)
+                            return (IntPtr)1;
+                    }
+                }
             }
 
             return CallNextHookEx(_hookId, nCode, wParam, lParam);
         }
+
+        private static bool IsAnyModifierDown() =>
+            IsKeyDown(VkShift) || IsKeyDown(VkControl) || IsKeyDown(VkMenu)
+            || IsKeyDown(VkLWin) || IsKeyDown(VkRWin);
+
+        private static bool IsKeyDown(uint vk) =>
+            (GetAsyncKeyState((int)vk) & 0x8000) != 0;
 
         private void StartHoldTimer()
         {
@@ -132,6 +183,9 @@ namespace SigXor
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern IntPtr GetModuleHandle(string? lpModuleName);
+
+        [DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int vKey);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct KbdLlHookStruct
