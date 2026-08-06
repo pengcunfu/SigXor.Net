@@ -15,7 +15,8 @@
         <Canvas x:Name="OverlayCanvas" Background="Transparent"
                 PointerPressed="OnPointerPressed"
                 PointerMoved="OnPointerMoved"
-                PointerReleased="OnPointerReleased">
+                PointerReleased="OnPointerReleased"
+                DoubleTapped="OnDoubleTapped">
             <Rectangle x:Name="DimTop" Fill="#6B000000" IsHitTestVisible="False"/>
             <Rectangle x:Name="DimBottom" Fill="#6B000000" IsHitTestVisible="False"/>
             <Rectangle x:Name="DimLeft" Fill="#6B000000" IsHitTestVisible="False"/>
@@ -32,7 +33,7 @@
                        Padding="5,2"
                        IsHitTestVisible="False"/>
             <TextBlock x:Name="HintText"
-                       Text="拖动选择截屏区域 · Enter 确认 · Esc/右键取消"
+                       Text="拖动选择区域 · 双击截全屏 · Enter 确认 · Esc/右键取消"
                        Foreground="White"
                        Background="#66000000"
                        FontSize="13"

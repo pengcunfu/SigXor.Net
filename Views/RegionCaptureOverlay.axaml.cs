@@ -125,6 +125,16 @@ public partial class RegionCaptureOverlay : Window
         e.Handled = true;
     }
 
+    /// <summary>双击截全屏：直接确认整个虚拟桌面区域。</summary>
+    private void OnDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (_settled)
+            return;
+
+        Confirm(new PixelRect(0, 0, _virtualBounds.Width, _virtualBounds.Height));
+        e.Handled = true;
+    }
+
     private PixelRect GetSelectionPhysical()
     {
         var scale = Scale;
