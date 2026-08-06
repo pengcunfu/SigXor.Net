@@ -49,6 +49,7 @@ public partial class MainWindow : Window
     private RegionCaptureOverlay? _captureOverlay;
     private RegionPreviewWindow? _previewWindow;
     private ScreenshotToolbar? _screenshotToolbar;
+    private OcrResultWindow? _ocrResultWindow;
     private OcrEngine? _ocrEngine;
 
     public MainWindow()
@@ -573,32 +574,35 @@ public partial class MainWindow : Window
         string? toastMessage = null;
         _ocrBusy = true;
         _screenshotToolbar?.SetBusy("准备中...");
+        ShowOcrResultDialog(); // 立即弹出结果窗口并显示进度
         try
         {
             _ocrEngine ??= new OcrEngine();
             var text = await _ocrEngine.RecognizeAsync(bitmap,
-                msg => Dispatcher.UIThread.Post(() => _screenshotToolbar?.SetBusy(msg)));
+                msg => Dispatcher.UIThread.Post(() =>
+                {
+                    _screenshotToolbar?.SetBusy(msg);
+                    _ocrResultWindow?.SetBusy(msg);
+                }));
 
             if (string.IsNullOrWhiteSpace(text))
             {
                 toastMessage = "未识别到文字";
+                _ocrResultWindow?.ShowFailure("未识别到文字");
                 ShowNotification("OCR", "未识别到文字");
             }
             else
             {
-                if (OperatingSystem.IsWindows())
-                    WindowsClipboardHelper.SetText(text);
-                else
-                    await CopyTextToClipboardAsync(text);
-
                 Dispatcher.UIThread.Post(() => LastRecognizedText.Text = text);
-                toastMessage = "识别完成，结果已复制到剪贴板";
-                ShowNotification("OCR 识别完成", TruncateText(text, 60));
+                toastMessage = "识别完成";
+                _ocrResultWindow?.ShowResult(text);
+                ShowNotification("OCR 识别完成", "已弹出识别结果窗口");
             }
         }
         catch (Exception ex)
         {
             toastMessage = "OCR 识别失败";
+            _ocrResultWindow?.ShowFailure($"识别失败: {ex.Message}");
             ShowNotification("OCR 识别失败", ex.Message);
         }
         finally
@@ -701,6 +705,33 @@ public partial class MainWindow : Window
             copied ? "截图已复制到剪贴板" : "无法写入剪贴板");
     }
 
+    /// <summary>立即弹出 OCR 结果对话框（忙碌状态，由用户决定复制或不复制）。</summary>
+    private void ShowOcrResultDialog()
+    {
+        try
+        {
+            if (_ocrResultWindow == null)
+            {
+                _ocrResultWindow = new OcrResultWindow();
+                _ocrResultWindow.Closed += (_, _) =>
+                {
+                    _ocrResultWindow = null;
+                    // 关闭结果窗口后恢复预览图（截屏流程仍在进行时）
+                    if (_isCapturing && _previewWindow != null && !_previewWindow.IsVisible)
+                        _previewWindow.Show();
+                };
+            }
+
+            // OCR 识别期间不需要预览图，先隐藏，关闭结果窗口后再恢复
+            _previewWindow?.Hide();
+            _ocrResultWindow.ShowBusy("正在准备 OCR 模型...");
+        }
+        catch (Exception ex)
+        {
+            ShowNotification("OCR 结果窗口打开失败", ex.Message);
+        }
+    }
+
     /// <summary>预览窗格拖动过程中实时更新，让工具条持续跟随其下方。</summary>
     private void OnPreviewPositionChanged(object? sender, PixelPoint previewPosition)
     {
@@ -744,6 +775,8 @@ public partial class MainWindow : Window
         _previewWindow = null;
         _screenshotToolbar?.Close();
         _screenshotToolbar = null;
+        _ocrResultWindow?.Close();
+        _ocrResultWindow = null;
         _capturedFullScreen?.Dispose();
         _capturedFullScreen = null;
         _capturedRegion?.Dispose();
@@ -771,21 +804,6 @@ public partial class MainWindow : Window
         }
 
         return union ?? Screens.Primary?.Bounds ?? new PixelRect(0, 0, 1920, 1080);
-    }
-
-    private async Task CopyTextToClipboardAsync(string text)
-    {
-        var clipboard = Clipboard ?? TopLevel.GetTopLevel(this)?.Clipboard;
-        if (clipboard == null)
-            throw new InvalidOperationException("无法访问剪贴板");
-        await clipboard.SetTextAsync(text);
-    }
-
-    private static string TruncateText(string text, int maxLength)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
-            return text;
-        return text.Substring(0, maxLength) + "…";
     }
 
     private void StartRecording(RecordingTrigger trigger)
@@ -1213,6 +1231,8 @@ public partial class MainWindow : Window
             _previewWindow = null;
             _screenshotToolbar?.Close();
             _screenshotToolbar = null;
+            _ocrResultWindow?.Close();
+            _ocrResultWindow = null;
             _capturedFullScreen?.Dispose();
             _capturedFullScreen = null;
             _capturedRegion?.Dispose();

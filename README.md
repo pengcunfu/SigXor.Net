@@ -6,7 +6,7 @@
 
 - **全局快捷键**：右 Alt 短按切换/长按录音（Windows 完整支持）
 - **区域截屏**：Fn + \` 拖动选择任意区域，弹出工具条（OCR 识别 / 复制 / 保存）
-- **OCR 文字识别**：PaddleOCR PP-OCRv5 本地离线识别（RapidOcrNet），中英文混排
+- **OCR 文字识别**：PaddleOCR PP-OCRv6（多语言，准确率更高）本地离线识别（RapidOcrNet），失败自动回退 PP-OCRv5
 - **实时语音录制**：使用系统麦克风进行实时语音录制
 - **AI 语音识别**：SenseVoice（中英日韩粤）本地离线识别
 - **自动输入**：将识别的文字自动输入到当前焦点位置
@@ -64,14 +64,14 @@ dotnet publish -c Release -r osx-arm64 --self-contained true -p:PublishSingleFil
 
 - 在选区界面上**双击**可直接截取整个屏幕
 - 截图会固定在选区位置显示，可拖拽移动，方便查看和核对；拖动截图时工具条会实时跟随
-- **OCR 识别**：本地识别选区文字（中英文），结果复制到剪贴板并托盘提示
+- **OCR 识别**：本地识别选区文字（中英文），点击后立即弹出结果窗口（显示识别进度，无最小化/最大化按钮），可「复制」或关闭；识别期间预览图暂时隐藏，关闭结果窗口后恢复
 - **复制图片**：把选区图片复制到剪贴板
 - **保存**：弹出对话框选择位置保存 PNG
 - **完成**：把截图复制到剪贴板并关闭工具条
 - 工具条本身也可拖拽到任意位置
 - 截屏流程中随时按 ESC 可退出（不复制）
 
-首次使用 OCR 时自动下载中文识别模型（约 16MB，存放在 `models/ocr/v5`），之后完全离线。可在「设置」中关闭该快捷键。
+首次使用 OCR 时自动下载 PP-OCRv6 多语言模型（约 30MB，存放在 `models/ocr/v6`；下载失败自动回退 PP-OCRv5，存放在 `models/ocr/v5`），之后完全离线。可在「设置」中关闭该快捷键。
 
 > 说明：Windows 键盘驱动不会把笔记本的 Fn 键暴露给系统，因此程序监听的是 \` 键本身（无 Shift/Ctrl/Alt/Win 组合时触发）。按下 Fn + \` 即可截屏；单独按 \` 也会触发，并会拦截该按键避免误输入。
 
@@ -105,7 +105,7 @@ dotnet publish -c Release -r osx-arm64 --self-contained true -p:PublishSingleFil
 - **UI 框架**：.NET 10.0 + Avalonia 11.3
 - **音频**：NAudio 2.3.0
 - **语音识别**：SenseVoice（org.k2fsa.sherpa.onnx 1.13.2）
-- **OCR 识别**：RapidOcrNet 3.0.0（PaddleOCR PP-OCRv5 ONNX，Apache-2.0）
+- **OCR 识别**：RapidOcrNet 3.0.0（PaddleOCR PP-OCRv6 / PP-OCRv5 ONNX，Apache-2.0）
 
 ## 项目结构
 
@@ -140,7 +140,7 @@ dotnet restore
 dotnet build -c Release
 ```
 
-- **模型路径**：`models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17/`（SenseVoice）；`models/ocr/v5/`（OCR）
+- **模型路径**：`models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17/`（SenseVoice）；`models/ocr/v6/`、`models/ocr/v5/`（OCR）
 
 ## 开发环境
 
