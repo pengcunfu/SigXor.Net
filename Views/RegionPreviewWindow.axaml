@@ -3,15 +3,17 @@
         x:Class="SigXor.RegionPreviewWindow"
         Title="RegionPreviewWindow"
         SystemDecorations="None"
-        Background="Transparent"
-        TransparencyLevelHint="Transparent"
+        Background="Black"
         ShowInTaskbar="False"
         Topmost="True"
         ShowActivated="False"
         Focusable="False"
         CanResize="False"
         WindowStartupLocation="Manual">
-    <Border BorderBrush="#E033A6FF" BorderThickness="1" Background="Transparent">
+    <Border BorderBrush="#E033A6FF" BorderThickness="1" Background="Transparent"
+            PointerPressed="OnPointerPressed"
+            PointerMoved="OnPointerMoved"
+            PointerReleased="OnPointerReleased">
         <Image x:Name="PreviewImage" Stretch="Fill"/>
     </Border>
 </Window>

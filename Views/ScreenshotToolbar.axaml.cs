@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform;
+using Avalonia.Threading;
 
 namespace SigXor;
 
@@ -12,6 +13,7 @@ public partial class ScreenshotToolbar : Window
 {
     private PixelRect _selectionRect;
     private Screen[] _screens = [];
+    private readonly DispatcherTimer _toastTimer;
 
     public event EventHandler? OcrRequested;
     public event EventHandler? CopyRequested;
@@ -21,7 +23,17 @@ public partial class ScreenshotToolbar : Window
     public ScreenshotToolbar()
     {
         InitializeComponent();
+        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.8) };
+        _toastTimer.Tick += OnToastTimerTick;
         Opened += OnOpened;
+    }
+
+    /// <summary>在工具条上短暂显示一条操作结果提示。</summary>
+    public void ShowToast(string message)
+    {
+        StatusText.Text = message;
+        _toastTimer.Stop();
+        _toastTimer.Start();
     }
 
     public void ShowAt(PixelRect selectionScreenRect, Screen[] screens)
@@ -38,6 +50,8 @@ public partial class ScreenshotToolbar : Window
         CopyButton.IsEnabled = false;
         SaveButton.IsEnabled = false;
         DoneButton.IsEnabled = false;
+        _toastTimer.Stop();
+        StatusText.Text = message;
     }
 
     public void SetIdle()
@@ -47,6 +61,14 @@ public partial class ScreenshotToolbar : Window
         CopyButton.IsEnabled = true;
         SaveButton.IsEnabled = true;
         DoneButton.IsEnabled = true;
+        _toastTimer.Stop();
+        StatusText.Text = string.Empty;
+    }
+
+    private void OnToastTimerTick(object? sender, EventArgs e)
+    {
+        _toastTimer.Stop();
+        StatusText.Text = string.Empty;
     }
 
     private void OnOpened(object? sender, EventArgs e)

@@ -13,6 +13,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 
 namespace SigXor;
@@ -545,6 +546,7 @@ public partial class MainWindow : Window
         if (bitmap == null || _ocrBusy)
             return;
 
+        string? toastMessage = null;
         _ocrBusy = true;
         _screenshotToolbar?.SetBusy("准备中...");
         try
@@ -555,20 +557,24 @@ public partial class MainWindow : Window
 
             if (string.IsNullOrWhiteSpace(text))
             {
+                toastMessage = "未识别到文字";
                 ShowNotification("OCR", "未识别到文字");
-                return;
             }
-
-            if (OperatingSystem.IsWindows())
-                WindowsClipboardHelper.SetText(text);
             else
-                await CopyTextToClipboardAsync(text);
+            {
+                if (OperatingSystem.IsWindows())
+                    WindowsClipboardHelper.SetText(text);
+                else
+                    await CopyTextToClipboardAsync(text);
 
-            Dispatcher.UIThread.Post(() => LastRecognizedText.Text = text);
-            ShowNotification("OCR 识别完成", TruncateText(text, 60));
+                Dispatcher.UIThread.Post(() => LastRecognizedText.Text = text);
+                toastMessage = "识别完成，结果已复制到剪贴板";
+                ShowNotification("OCR 识别完成", TruncateText(text, 60));
+            }
         }
         catch (Exception ex)
         {
+            toastMessage = "OCR 识别失败";
             ShowNotification("OCR 识别失败", ex.Message);
         }
         finally
@@ -576,6 +582,9 @@ public partial class MainWindow : Window
             _ocrBusy = false;
             _screenshotToolbar?.SetIdle();
         }
+
+        if (toastMessage != null)
+            _screenshotToolbar?.ShowToast(toastMessage);
     }
 
     private void OnToolbarCopyRequested(object? sender, EventArgs e)
@@ -585,12 +594,18 @@ public partial class MainWindow : Window
             return;
 
         if (ScreenshotHelper.CopyBitmapToClipboard(bitmap))
+        {
+            _screenshotToolbar?.ShowToast("已复制到剪贴板");
             ShowNotification("已复制", "选区图片已复制到剪贴板");
+        }
         else
+        {
+            _screenshotToolbar?.ShowToast("复制失败");
             ShowNotification("复制失败", "无法写入剪贴板");
+        }
     }
 
-    private void OnToolbarSaveRequested(object? sender, EventArgs e)
+    private async void OnToolbarSaveRequested(object? sender, EventArgs e)
     {
         var bitmap = _capturedRegion;
         if (bitmap == null)
@@ -603,13 +618,46 @@ public partial class MainWindow : Window
                 "SigXor",
                 "Screenshots");
             Directory.CreateDirectory(screenshotDir);
-            var filePath = Path.Combine(screenshotDir,
-                $"screenshot_{DateTime.Now:yyyyMMdd_HHmmss_fff}.png");
-            bitmap.Save(filePath);
-            ShowNotification("已保存", filePath);
+
+            var topLevel = _screenshotToolbar as TopLevel ?? this;
+            IStorageFolder? startFolder = null;
+            try
+            {
+                startFolder = await topLevel.StorageProvider
+                    .TryGetFolderFromPathAsync(screenshotDir);
+            }
+            catch
+            {
+                // 起始目录不可用时忽略，使用系统默认位置
+            }
+
+            var file = await topLevel.StorageProvider.SaveFilePickerAsync(
+                new FilePickerSaveOptions
+                {
+                    Title = "保存截图",
+                    SuggestedFileName = $"screenshot_{DateTime.Now:yyyyMMdd_HHmmss}.png",
+                    DefaultExtension = "png",
+                    FileTypeChoices =
+                    [
+                        new FilePickerFileType("PNG 图片") { Patterns = ["*.png"] }
+                    ],
+                    SuggestedStartLocation = startFolder
+                });
+
+            if (file == null)
+                return;
+
+            await using (var stream = await file.OpenWriteAsync())
+            {
+                bitmap.Save(stream);
+            }
+
+            _screenshotToolbar?.ShowToast($"已保存: {Path.GetFileName(file.Path.LocalPath)}");
+            ShowNotification("已保存", file.Path.LocalPath);
         }
         catch (Exception ex)
         {
+            _screenshotToolbar?.ShowToast("保存失败");
             ShowNotification("保存失败", ex.Message);
         }
     }
@@ -618,7 +666,15 @@ public partial class MainWindow : Window
     {
         if (_ocrBusy)
             return;
+
+        var copied = false;
+        if (_capturedRegion != null)
+            copied = ScreenshotHelper.CopyBitmapToClipboard(_capturedRegion);
+
         FinishRegionCapture(restoreWindow: true);
+        ShowNotification(
+            copied ? "已复制" : "复制失败",
+            copied ? "截图已复制到剪贴板" : "无法写入剪贴板");
     }
 
     private void FinishRegionCapture(bool restoreWindow)
