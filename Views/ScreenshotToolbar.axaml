@@ -12,10 +12,15 @@
         CanResize="False"
         WindowStartupLocation="Manual"
         SizeToContent="WidthAndHeight">
-    <Border Background="#F01F1F1F"
+    <Border x:Name="ToolbarSurface"
+            Background="#F01F1F1F"
             CornerRadius="9"
             Padding="8,6"
-            BoxShadow="0 3 14 0 #66000000">
+            BoxShadow="0 3 14 0 #66000000"
+            PointerPressed="OnPointerPressed"
+            PointerMoved="OnPointerMoved"
+            PointerReleased="OnPointerReleased"
+            PointerCaptureLost="OnPointerCaptureLost">
         <StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="5">
                 <Button x:Name="OcrButton" Content="OCR 识别" Padding="14,6" Click="OnOcrClick"/>

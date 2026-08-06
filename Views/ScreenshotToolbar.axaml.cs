@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform;
 using Avalonia.Threading;
@@ -14,6 +16,9 @@ public partial class ScreenshotToolbar : Window
     private PixelRect _selectionRect;
     private Screen[] _screens = [];
     private readonly DispatcherTimer _toastTimer;
+    private bool _dragging;
+    private Point _pointerDownPosition;
+    private PixelPoint _windowDownPosition;
 
     public event EventHandler? OcrRequested;
     public event EventHandler? CopyRequested;
@@ -25,6 +30,11 @@ public partial class ScreenshotToolbar : Window
         InitializeComponent();
         _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.8) };
         _toastTimer.Tick += OnToastTimerTick;
+        Cursor = new Cursor(StandardCursorType.SizeAll);
+        OcrButton.Cursor = new Cursor(StandardCursorType.Arrow);
+        CopyButton.Cursor = new Cursor(StandardCursorType.Arrow);
+        SaveButton.Cursor = new Cursor(StandardCursorType.Arrow);
+        DoneButton.Cursor = new Cursor(StandardCursorType.Arrow);
         Opened += OnOpened;
     }
 
@@ -41,6 +51,13 @@ public partial class ScreenshotToolbar : Window
         _selectionRect = selectionScreenRect;
         _screens = screens;
         Show();
+    }
+
+    /// <summary>把工具条移动到指定选区附近（优先下方，空间不足则上方），并限制在屏幕内。</summary>
+    public void MoveNear(PixelRect anchor)
+    {
+        _selectionRect = anchor;
+        Reposition();
     }
 
     public void SetBusy(string message)
@@ -78,10 +95,96 @@ public partial class ScreenshotToolbar : Window
         Reposition();
     }
 
+    private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (IsInsideButton(e.Source))
+            return;
+
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            return;
+
+        e.Handled = true;
+
+        if (OperatingSystem.IsWindows())
+        {
+            // 系统原生拖拽：无抖动、无闪烁
+            var handle = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+            if (handle == IntPtr.Zero)
+                return;
+
+            ReleaseCapture();
+            SendMessage(handle, WmNclbuttondown, (IntPtr)HtCaption, IntPtr.Zero);
+            return;
+        }
+
+        _dragging = true;
+        _pointerDownPosition = e.GetPosition(this);
+        _windowDownPosition = Position;
+        e.Pointer.Capture(ToolbarSurface);
+    }
+
+    private void OnPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_dragging)
+            return;
+
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            _dragging = false;
+            e.Pointer.Capture(null);
+            return;
+        }
+
+        var current = e.GetPosition(this);
+        var scale = RenderScaling > 0 ? RenderScaling : 1.0;
+        var dx = (int)Math.Round((current.X - _pointerDownPosition.X) * scale);
+        var dy = (int)Math.Round((current.Y - _pointerDownPosition.Y) * scale);
+        Position = new PixelPoint(_windowDownPosition.X + dx, _windowDownPosition.Y + dy);
+        e.Handled = true;
+    }
+
+    private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!_dragging)
+            return;
+
+        _dragging = false;
+        e.Pointer.Capture(null);
+        e.Handled = true;
+    }
+
+    private void OnPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        _dragging = false;
+    }
+
+    private static bool IsInsideButton(object? source)
+    {
+        var element = source as Visual;
+        while (element != null)
+        {
+            if (element is Button)
+                return true;
+            element = element.Parent as Visual;
+        }
+
+        return false;
+    }
+
+    private const int WmNclbuttondown = 0x00A1;
+    private const int HtCaption = 0x0002;
+
+    [DllImport("user32.dll")]
+    private static extern bool ReleaseCapture();
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
     private void Reposition()
     {
-        var w = (int)Math.Ceiling(Width);
-        var h = (int)Math.Ceiling(Height);
+        var scale = RenderScaling > 0 ? RenderScaling : 1.0;
+        var w = (int)Math.Ceiling(Width * scale);
+        var h = (int)Math.Ceiling(Height * scale);
         if (w <= 0 || h <= 0)
             return;
 
@@ -91,10 +194,7 @@ public partial class ScreenshotToolbar : Window
         var area = screen?.Bounds ?? new PixelRect(0, 0, 1920, 1080);
 
         var x = _selectionRect.X + _selectionRect.Width / 2 - w / 2;
-        var y = _selectionRect.Bottom + 8;
-        if (y + h > area.Bottom && _selectionRect.Y - h - 8 >= area.Y)
-            y = _selectionRect.Y - h - 8;
-
+        var y = _selectionRect.Bottom + 8; // 始终在预览框下方固定距离
         x = Math.Clamp(x, area.X + 4, area.Right - w - 4);
         y = Math.Clamp(y, area.Y + 4, area.Bottom - h - 4);
         Position = new PixelPoint(x, y);

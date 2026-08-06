@@ -215,6 +215,7 @@ public partial class MainWindow : Window
             _keyboardHook.ShortcutReleased += OnShortcutReleased;
             _keyboardHook.ShortcutHoldDetected += OnShortcutHoldDetected;
             _keyboardHook.ScreenshotShortcutPressed += OnScreenshotShortcutPressed;
+            _keyboardHook.EscapePressed += OnEscapePressed;
 
             _audioCapture = new AudioCapture();
             _audioCapture.StatusChanged += OnAudioStatusChanged;
@@ -432,6 +433,8 @@ public partial class MainWindow : Window
         }
 
         _isCapturing = true;
+        if (_keyboardHook != null)
+            _keyboardHook.EscapeCaptureEnabled = true;
         try
         {
             _wasMainWindowVisible = IsVisible;
@@ -476,8 +479,27 @@ public partial class MainWindow : Window
             _capturedFullScreen?.Dispose();
             _capturedFullScreen = null;
             _isCapturing = false;
+            if (_keyboardHook != null)
+                _keyboardHook.EscapeCaptureEnabled = false;
             RestoreMainWindowAfterCapture();
             ShowNotification("截屏失败", ex.Message);
+        }
+    }
+
+    /// <summary>截屏流程期间按下 ESC：退出截屏（关闭预览/工具条，不复制）。</summary>
+    private void OnEscapePressed(object? sender, EventArgs e)
+    {
+        try
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_isCapturing)
+                    FinishRegionCapture(restoreWindow: true);
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"ESC 退出截屏调度失败: {ex.Message}");
         }
     }
 
@@ -516,6 +538,7 @@ public partial class MainWindow : Window
 
             _previewWindow?.Close();
             _previewWindow = new RegionPreviewWindow();
+            _previewWindow.DragPositionChanged += OnPreviewPositionChanged;
             _previewWindow.ShowAt(region, screenRect, RenderScaling);
 
             _screenshotToolbar?.Close();
@@ -525,6 +548,7 @@ public partial class MainWindow : Window
             _screenshotToolbar.SaveRequested += OnToolbarSaveRequested;
             _screenshotToolbar.CloseRequested += OnToolbarCloseRequested;
             _screenshotToolbar.ShowAt(screenRect, Screens.All.ToArray());
+            ForceWindowTopmost(_screenshotToolbar);
         }
         catch (Exception ex)
         {
@@ -677,6 +701,41 @@ public partial class MainWindow : Window
             copied ? "截图已复制到剪贴板" : "无法写入剪贴板");
     }
 
+    /// <summary>预览窗格拖动过程中实时更新，让工具条持续跟随其下方。</summary>
+    private void OnPreviewPositionChanged(object? sender, PixelPoint previewPosition)
+    {
+        var preview = _previewWindow;
+        var toolbar = _screenshotToolbar;
+        if (preview == null || toolbar == null)
+            return;
+
+        var scale = preview.RenderScaling > 0 ? preview.RenderScaling : 1.0;
+        var width = (int)Math.Ceiling(preview.Width * scale);
+        var height = (int)Math.Ceiling(preview.Height * scale);
+        toolbar.MoveNear(new PixelRect(
+            previewPosition.X,
+            previewPosition.Y,
+            Math.Max(1, width),
+            Math.Max(1, height)));
+    }
+
+    /// <summary>把工具条提升到置顶窗口最上层，确保不被预览窗格遮挡。</summary>
+    private static void ForceWindowTopmost(Window window)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        var handle = window.TryGetPlatformHandle()?.Handle ?? nint.Zero;
+        if (handle == nint.Zero)
+            return;
+
+        const uint swpNosize = 0x0001;
+        const uint swpNomove = 0x0002;
+        const uint swpNoactivate = 0x0010;
+        SetWindowPos(handle, new nint(-1), 0, 0, 0, 0,
+            swpNomove | swpNosize | swpNoactivate);
+    }
+
     private void FinishRegionCapture(bool restoreWindow)
     {
         _captureOverlay?.Close();
@@ -690,6 +749,8 @@ public partial class MainWindow : Window
         _capturedRegion?.Dispose();
         _capturedRegion = null;
         _isCapturing = false;
+        if (_keyboardHook != null)
+            _keyboardHook.EscapeCaptureEnabled = false;
 
         if (restoreWindow)
             RestoreMainWindowAfterCapture();

@@ -10,10 +10,12 @@
         Focusable="False"
         CanResize="False"
         WindowStartupLocation="Manual">
-    <Border BorderBrush="#E033A6FF" BorderThickness="1" Background="Transparent"
+    <Border x:Name="DragSurface"
+            BorderBrush="#E033A6FF" BorderThickness="1" Background="Transparent"
             PointerPressed="OnPointerPressed"
             PointerMoved="OnPointerMoved"
-            PointerReleased="OnPointerReleased">
+            PointerReleased="OnPointerReleased"
+            PointerCaptureLost="OnPointerCaptureLost">
         <Image x:Name="PreviewImage" Stretch="Fill"/>
     </Border>
 </Window>

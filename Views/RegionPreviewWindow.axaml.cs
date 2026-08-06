@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -13,13 +12,13 @@ namespace SigXor;
 /// </summary>
 public partial class RegionPreviewWindow : Window
 {
-    private const int WmNclbuttondown = 0x00A1;
-    private const int HtCaption = 0x0002;
-
     private PixelRect _screenRect;
     private bool _dragging;
-    private Point _pointerDownPosition;
+    private PixelPoint _pointerDownScreen;
     private PixelPoint _windowDownPosition;
+
+    /// <summary>拖拽过程中的实时位置（物理像素），用于让工具条持续跟随。</summary>
+    public event EventHandler<PixelPoint>? DragPositionChanged;
 
     public RegionPreviewWindow()
     {
@@ -57,28 +56,10 @@ public partial class RegionPreviewWindow : Window
             return;
 
         e.Handled = true;
-
-        if (OperatingSystem.IsWindows())
-        {
-            // 交给系统原生拖拽：无抖动、无闪烁，跨显示器也平滑
-            BeginNativeDrag();
-            return;
-        }
-
         _dragging = true;
-        _pointerDownPosition = e.GetPosition(this);
+        _pointerDownScreen = Avalonia.VisualExtensions.PointToScreen(this, e.GetPosition(this));
         _windowDownPosition = Position;
-        e.Pointer.Capture(this);
-    }
-
-    private void BeginNativeDrag()
-    {
-        var handle = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-        if (handle == IntPtr.Zero)
-            return;
-
-        ReleaseCapture();
-        SendMessage(handle, WmNclbuttondown, (IntPtr)HtCaption, IntPtr.Zero);
+        e.Pointer.Capture(DragSurface);
     }
 
     private void OnPointerMoved(object? sender, PointerEventArgs e)
@@ -86,11 +67,20 @@ public partial class RegionPreviewWindow : Window
         if (!_dragging)
             return;
 
-        var current = e.GetPosition(this);
-        var scale = RenderScaling > 0 ? RenderScaling : 1.0;
-        var dx = (int)Math.Round((current.X - _pointerDownPosition.X) * scale);
-        var dy = (int)Math.Round((current.Y - _pointerDownPosition.Y) * scale);
-        Position = new PixelPoint(_windowDownPosition.X + dx, _windowDownPosition.Y + dy);
+        // 保险：即使 PointerReleased 未送达，也能检测到左键已松开
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            _dragging = false;
+            e.Pointer.Capture(null);
+            DragPositionChanged?.Invoke(this, Position);
+            return;
+        }
+
+        var currentScreen = Avalonia.VisualExtensions.PointToScreen(this, e.GetPosition(this));
+        Position = new PixelPoint(
+            _windowDownPosition.X + currentScreen.X - _pointerDownScreen.X,
+            _windowDownPosition.Y + currentScreen.Y - _pointerDownScreen.Y);
+        DragPositionChanged?.Invoke(this, Position);
         e.Handled = true;
     }
 
@@ -101,12 +91,13 @@ public partial class RegionPreviewWindow : Window
 
         _dragging = false;
         e.Pointer.Capture(null);
+        DragPositionChanged?.Invoke(this, Position);
         e.Handled = true;
     }
 
-    [DllImport("user32.dll")]
-    private static extern bool ReleaseCapture();
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+    private void OnPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        // 窗口移动等导致系统捕获意外丢失时，立即停止拖拽，避免“松手后还跟着鼠标”
+        _dragging = false;
+    }
 }

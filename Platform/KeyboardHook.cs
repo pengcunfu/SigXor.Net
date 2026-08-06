@@ -15,6 +15,7 @@ namespace SigXor
         private const int WmSyskeyup = 0x0105;
         private const int VkRMenu = 0xA5; // 右 Alt
         private const uint VkOem3 = 0xC0; // ` ~ 键（笔记本 Fn 对系统不可见，实际以该键触发）
+        private const uint VkEscape = 0x1B;
         private const uint VkShift = 0x10;
         private const uint VkControl = 0x11;
         private const uint VkMenu = 0x12;
@@ -28,6 +29,8 @@ namespace SigXor
         private bool _isKeyDown;
         private bool _screenshotKeyDown;
         private bool _screenshotSuppressed;
+        private bool _escapeKeyDown;
+        private bool _escapeSuppressed;
         private CancellationTokenSource? _holdCts;
 
         /// <summary>按住超过该时长视为「长按模式」，否则为「点击切换」</summary>
@@ -36,12 +39,16 @@ namespace SigXor
         /// <summary>是否启用 Fn + ` 截屏快捷键</summary>
         public bool ScreenshotEnabled { get; set; } = true;
 
+        /// <summary>截屏流程期间接管 ESC 键：吞掉按键并触发 EscapePressed</summary>
+        public bool EscapeCaptureEnabled { get; set; }
+
         public bool IsSupported => true;
 
         public event EventHandler? ShortcutPressed;
         public event EventHandler? ShortcutReleased;
         public event EventHandler? ShortcutHoldDetected;
         public event EventHandler? ScreenshotShortcutPressed;
+        public event EventHandler? EscapePressed;
 
         public KeyboardHook()
         {
@@ -74,6 +81,8 @@ namespace SigXor
             _isKeyDown = false;
             _screenshotKeyDown = false;
             _screenshotSuppressed = false;
+            _escapeKeyDown = false;
+            _escapeSuppressed = false;
             CancelHoldTimer();
         }
 
@@ -125,6 +134,34 @@ namespace SigXor
                         var wasSuppressed = _screenshotSuppressed;
                         _screenshotKeyDown = false;
                         _screenshotSuppressed = false;
+                        if (wasSuppressed)
+                            return (IntPtr)1;
+                    }
+                }
+
+                if (!isInjected && hookStruct.vkCode == VkEscape)
+                {
+                    if (isKeyDown)
+                    {
+                        if (_escapeSuppressed)
+                            return (IntPtr)1;
+
+                        if (!_escapeKeyDown)
+                        {
+                            _escapeKeyDown = true;
+                            if (EscapeCaptureEnabled)
+                            {
+                                _escapeSuppressed = true;
+                                EscapePressed?.Invoke(this, EventArgs.Empty);
+                                return (IntPtr)1;
+                            }
+                        }
+                    }
+                    else if (isKeyUp)
+                    {
+                        var wasSuppressed = _escapeSuppressed;
+                        _escapeKeyDown = false;
+                        _escapeSuppressed = false;
                         if (wasSuppressed)
                             return (IntPtr)1;
                     }
