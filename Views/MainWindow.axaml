@@ -40,10 +40,6 @@
                             <Button x:Name="OpenModelFolderButton" Content="打开模型目录" Margin="8,0,0,0" Padding="8,2"
                                     IsVisible="False" Click="OpenModelFolderButton_Click"/>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="最后识别:" Width="80"/>
-                            <TextBlock x:Name="LastRecognizedText" Text="无" TextWrapping="Wrap"/>
-                        </StackPanel>
                     </StackPanel>
 
                     <TextBlock Grid.Row="2"

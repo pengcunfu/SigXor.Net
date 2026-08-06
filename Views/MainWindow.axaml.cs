@@ -593,7 +593,6 @@ public partial class MainWindow : Window
             }
             else
             {
-                Dispatcher.UIThread.Post(() => LastRecognizedText.Text = text);
                 toastMessage = "识别完成";
                 _ocrResultWindow?.ShowResult(text);
                 ShowNotification("OCR 识别完成", "已弹出识别结果窗口");
@@ -874,7 +873,6 @@ public partial class MainWindow : Window
             else
                 await _textSimulator!.TypeTextAsync(text);
 
-            Dispatcher.UIThread.Post(() => LastRecognizedText.Text = text);
             ShowNotification("文字输入完成", text);
         }
         catch (Exception ex)
