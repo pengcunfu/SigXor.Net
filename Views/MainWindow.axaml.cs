@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     private WriteableBitmap? _capturedFullScreen;
     private WriteableBitmap? _capturedRegion;
     private PixelRect _virtualBounds;
+    private PixelRect _previewScreenRect;
     private RegionCaptureOverlay? _captureOverlay;
     private RegionPreviewWindow? _previewWindow;
     private ScreenshotToolbar? _screenshotToolbar;
@@ -596,6 +597,7 @@ public partial class MainWindow : Window
             _previewWindow.DragPositionChanged += OnPreviewPositionChanged;
             _previewWindow.Closed += OnPreviewWindowClosed;
             _previewWindow.ShowAt(region, screenRect, scale);
+            _previewScreenRect = screenRect;
 
             _screenshotToolbar?.Close();
             _screenshotToolbar = new ScreenshotToolbar();
@@ -818,9 +820,31 @@ public partial class MainWindow : Window
                 };
             }
 
-            // 工具条只在预览框存在时保留；进入 OCR 后关掉预览与工具条
-            ClosePreviewAndToolbar();
-            _ocrResultWindow.ShowBusy("正在准备 OCR 模型...");
+            // 保留预览框，仅关闭工具条；结果窗口相对预览框居中
+            if (_previewWindow != null)
+            {
+                var scale = _previewWindow.RenderScaling > 0 ? _previewWindow.RenderScaling : 1.0;
+                var width = (int)Math.Ceiling(Math.Max(1, _previewWindow.Width) * scale);
+                var height = (int)Math.Ceiling(Math.Max(1, _previewWindow.Height) * scale);
+                _previewScreenRect = new PixelRect(
+                    _previewWindow.Position.X,
+                    _previewWindow.Position.Y,
+                    width,
+                    height);
+            }
+
+            var anchor = _previewScreenRect;
+            var screens = Screens.All.ToArray();
+
+            if (_screenshotToolbar != null)
+            {
+                var toolbar = _screenshotToolbar;
+                _screenshotToolbar = null;
+                toolbar.Close();
+            }
+
+            _ocrResultWindow.ShowBusy("正在准备 OCR 模型...", anchor, screens);
+            ForceWindowTopmost(_ocrResultWindow);
         }
         catch (Exception ex)
         {
@@ -874,6 +898,11 @@ public partial class MainWindow : Window
             previewPosition.Y,
             Math.Max(1, width),
             Math.Max(1, height)));
+        _previewScreenRect = new PixelRect(
+            previewPosition.X,
+            previewPosition.Y,
+            Math.Max(1, width),
+            Math.Max(1, height));
     }
 
     /// <summary>把工具条提升到置顶窗口最上层，确保不被预览窗格遮挡。</summary>
