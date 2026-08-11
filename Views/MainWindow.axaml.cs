@@ -26,7 +26,7 @@ public partial class MainWindow : Window
     private AudioCapture? _audioCapture;
     private SpeechRecognizer? _speechRecognizer;
     private TextSimulator? _textSimulator;
-    private VoiceInputOverlay? _voiceOverlay;
+    private VoiceInputOverlayController? _voiceOverlay;
     private TrayIconManager? _trayIcon;
     private bool _serviceRunning;
     private bool _isStartingService;
@@ -66,6 +66,7 @@ public partial class MainWindow : Window
         LoadUserSettings();
         InitializeServices();
         UpdateOcrActionButtons();
+        UpdateShortcutHintTexts();
 
         _statusTimer = new DispatcherTimer
         {
@@ -211,9 +212,14 @@ public partial class MainWindow : Window
 
                     ShowNotificationsCheckBox.IsChecked = _config.ShowNotifications;
                     UseClipboardCheckBox.IsChecked = _config.UseClipboard;
+                    SelectComboBoxByTag(VoiceHotkeyComboBox, _config.VoiceShortcut);
                     ScreenshotShortcutCheckBox.IsChecked = _config.EnableScreenshotShortcut;
+                    SelectComboBoxByTag(ScreenshotHotkeyComboBox, _config.ScreenshotShortcut);
+                    if (ScreenshotHotkeyComboBox != null)
+                        ScreenshotHotkeyComboBox.IsEnabled = _config.EnableScreenshotShortcut;
                     SilentStartCheckBox.IsChecked = _config.SilentStart;
                     MinimizeToTrayCheckBox.IsChecked = _config.MinimizeToTray;
+                    UpdateShortcutHintTexts();
 
                     var autoStart = _config.AutoStartWithWindows;
                     if (autoStart != StartupHelper.IsEnabled())
@@ -243,7 +249,9 @@ public partial class MainWindow : Window
         {
             _keyboardHook = PlatformServices.CreateKeyboardHook();
             _keyboardHook.HoldThresholdMs = (int)(_config.AltHoldThreshold * 1000);
+            _keyboardHook.VoiceShortcut = _config.VoiceShortcut;
             _keyboardHook.ScreenshotEnabled = _config.EnableScreenshotShortcut;
+            _keyboardHook.ScreenshotModifier = _config.ScreenshotShortcut;
             _keyboardHook.ShortcutPressed += OnShortcutPressed;
             _keyboardHook.ShortcutReleased += OnShortcutReleased;
             _keyboardHook.ShortcutHoldDetected += OnShortcutHoldDetected;
@@ -259,7 +267,7 @@ public partial class MainWindow : Window
 
             _textSimulator = new TextSimulator(_config.TypingDelay);
             _textSimulator.SetOwnerWindow(this);
-            _voiceOverlay = new VoiceInputOverlay();
+            _voiceOverlay = new VoiceInputOverlayController();
 
             _trayIcon = new TrayIconManager();
             _trayIcon.ShowWindowRequested += (_, _) => ShowMainWindow();
@@ -333,7 +341,8 @@ public partial class MainWindow : Window
             }
 
             _serviceRunning = true;
-            ShowNotification("服务已启动", "使用右 Alt 键进行语音输入");
+            var voiceKey = Config.FormatVoiceShortcut(_config.VoiceShortcut);
+            ShowNotification("服务已启动", $"使用{voiceKey}键进行语音输入");
             RecognitionStatusText.Text = $"{_speechRecognizer?.EngineName ?? engineName} 就绪";
         }
         catch (Exception ex)
@@ -848,7 +857,7 @@ public partial class MainWindow : Window
             _isRecording = true;
             _textSimulator?.CaptureTargetWindow();
             _audioCapture?.StartRecording(_config.SampleRate, _config.Channels, _config.BitDepth);
-            _voiceOverlay?.ShowRecording();
+            _voiceOverlay?.ShowRecording(Screens.All);
         }
         catch (Exception ex)
         {
@@ -870,7 +879,7 @@ public partial class MainWindow : Window
             _activeTrigger = RecordingTrigger.None;
             _keyboardToggleActive = false;
             _audioCapture?.StopRecording();
-            _voiceOverlay?.ShowProcessing();
+            _voiceOverlay?.ShowProcessing(Screens.All);
 
             var audioData = _audioCapture?.GetCompleteAudio();
             if (audioData != null && _speechRecognizer != null)
@@ -1227,6 +1236,25 @@ public partial class MainWindow : Window
         _config.Save();
     }
 
+    private void VoiceHotkeyComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoadingSettings || VoiceHotkeyComboBox == null)
+            return;
+
+        if (VoiceHotkeyComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+        {
+            var shortcut = Config.NormalizeVoiceShortcut(item.Tag.ToString());
+            if (_config.VoiceShortcut == shortcut)
+                return;
+
+            _config.VoiceShortcut = shortcut;
+            _config.Save();
+            if (_keyboardHook != null)
+                _keyboardHook.VoiceShortcut = shortcut;
+            UpdateShortcutHintTexts();
+        }
+    }
+
     private void ScreenshotShortcutCheckBox_Changed(object? sender, RoutedEventArgs e)
     {
         if (_isLoadingSettings || ScreenshotShortcutCheckBox == null)
@@ -1236,6 +1264,50 @@ public partial class MainWindow : Window
         _config.Save();
         if (_keyboardHook != null)
             _keyboardHook.ScreenshotEnabled = _config.EnableScreenshotShortcut;
+        if (ScreenshotHotkeyComboBox != null)
+            ScreenshotHotkeyComboBox.IsEnabled = _config.EnableScreenshotShortcut;
+        UpdateShortcutHintTexts();
+    }
+
+    private void ScreenshotHotkeyComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoadingSettings || ScreenshotHotkeyComboBox == null)
+            return;
+
+        if (ScreenshotHotkeyComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+        {
+            var shortcut = Config.NormalizeScreenshotShortcut(item.Tag.ToString());
+            if (_config.ScreenshotShortcut == shortcut)
+                return;
+
+            _config.ScreenshotShortcut = shortcut;
+            _config.Save();
+            if (_keyboardHook != null)
+                _keyboardHook.ScreenshotModifier = shortcut;
+            UpdateShortcutHintTexts();
+        }
+    }
+
+    private void UpdateShortcutHintTexts()
+    {
+        var voiceKey = Config.FormatVoiceShortcut(_config.VoiceShortcut);
+        var hotkey = Config.FormatScreenshotShortcut(_config.ScreenshotShortcut, _config.VoiceShortcut);
+        if (UsageHintText != null)
+        {
+            UsageHintText.Text =
+                $"使用说明：{voiceKey} 短按开始/再按结束（长录音），或按住{voiceKey}松手结束（短句）。\n" +
+                $"截屏：{hotkey} 拖动选择区域，自动弹出工具条，支持 OCR 文字识别";
+        }
+
+        if (AboutDescriptionText != null)
+        {
+            AboutDescriptionText.Text =
+                "基于 SenseVoice 的本地语音识别工具。\n" +
+                $"使用{voiceKey}快捷键进行语音输入：\n" +
+                "· 短按：开始/结束长录音\n" +
+                "· 按住：松手结束短句录音\n" +
+                $"{hotkey} 区域截屏：拖动选区，工具条支持 OCR 识别、复制、保存";
+        }
     }
 
     private void ShowNotification(string title, string message)
@@ -1323,7 +1395,7 @@ public partial class MainWindow : Window
             _keyboardHook?.Dispose();
             _audioCapture?.Dispose();
             _speechRecognizer?.Dispose();
-            _voiceOverlay?.Close();
+            _voiceOverlay?.Dispose();
             _voiceOverlay = null;
             _captureOverlay?.Close();
             _captureOverlay = null;

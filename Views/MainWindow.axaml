@@ -50,8 +50,8 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <TextBlock Grid.Row="2"
-                               Text="使用说明：右 Alt 短按开始/再按结束（长录音），或按住右 Alt 松手结束（短句）。&#10;截屏：Fn + ` 拖动选择区域，自动弹出工具条，支持 OCR 文字识别"
+                    <TextBlock x:Name="UsageHintText"
+                               Grid.Row="2"
                                FontSize="12" Foreground="Gray"
                                TextWrapping="Wrap" Margin="0,12,0,0"/>
                 </Grid>
@@ -69,12 +69,23 @@
                             <TextBlock Grid.Column="0" Text="识别语言:" VerticalAlignment="Center"/>
                             <ComboBox Grid.Column="1" x:Name="LanguageComboBox" HorizontalAlignment="Stretch"
                                       SelectionChanged="LanguageComboBox_SelectionChanged">
-                                <ComboBoxItem Content="中文" Tag="zh-CN" IsSelected="True"/>
+                                <ComboBoxItem Content="中文" Tag="zh-CN"/>
                                 <ComboBoxItem Content="English" Tag="en-US"/>
                                 <ComboBoxItem Content="粤语" Tag="yue"/>
                                 <ComboBoxItem Content="日语" Tag="ja"/>
                                 <ComboBoxItem Content="韩语" Tag="ko"/>
-                                <ComboBoxItem Content="自动" Tag="auto"/>
+                                <ComboBoxItem Content="自动" Tag="auto" IsSelected="True"/>
+                            </ComboBox>
+                        </Grid>
+                        <Grid Margin="0,0,0,8" ColumnDefinitions="90,*">
+                            <TextBlock Grid.Column="0" Text="语音快捷键:" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="1" x:Name="VoiceHotkeyComboBox" HorizontalAlignment="Stretch"
+                                      SelectionChanged="VoiceHotkeyComboBox_SelectionChanged">
+                                <ComboBoxItem Content="右 Alt" Tag="right-alt" IsSelected="True"/>
+                                <ComboBoxItem Content="左 Alt" Tag="left-alt"/>
+                                <ComboBoxItem Content="右 Ctrl" Tag="right-ctrl"/>
+                                <ComboBoxItem Content="左 Ctrl" Tag="left-ctrl"/>
+                                <ComboBoxItem Content="Caps Lock" Tag="caps-lock"/>
                             </ComboBox>
                         </Grid>
                         <CheckBox x:Name="ShowNotificationsCheckBox" Content="显示通知"
@@ -83,9 +94,19 @@
                         <CheckBox x:Name="UseClipboardCheckBox" Content="使用剪贴板粘贴"
                                   Margin="0,0,0,5" Checked="UseClipboardCheckBox_Changed"
                                   Unchecked="UseClipboardCheckBox_Changed"/>
-                        <CheckBox x:Name="ScreenshotShortcutCheckBox" Content="启用 Fn + ` 区域截屏（选区 + OCR）"
+                        <CheckBox x:Name="ScreenshotShortcutCheckBox" Content="启用区域截屏（选区 + OCR）"
                                   Margin="0,0,0,5" Checked="ScreenshotShortcutCheckBox_Changed"
                                   Unchecked="ScreenshotShortcutCheckBox_Changed"/>
+                        <Grid Margin="0,0,0,8" ColumnDefinitions="90,*">
+                            <TextBlock Grid.Column="0" Text="截屏快捷键:" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="1" x:Name="ScreenshotHotkeyComboBox" HorizontalAlignment="Stretch"
+                                      SelectionChanged="ScreenshotHotkeyComboBox_SelectionChanged">
+                                <ComboBoxItem Content="Alt + `" Tag="alt" IsSelected="True"/>
+                                <ComboBoxItem Content="Ctrl + `" Tag="ctrl"/>
+                                <ComboBoxItem Content="Ctrl + Shift + `" Tag="ctrl+shift"/>
+                                <ComboBoxItem Content="Win + `" Tag="win"/>
+                            </ComboBox>
+                        </Grid>
                         <CheckBox x:Name="SilentStartCheckBox" Content="开机自启动时静默（仅托盘，不显示窗口）"
                                   Margin="0,0,0,5" Checked="SilentStartCheckBox_Changed"
                                   Unchecked="SilentStartCheckBox_Changed"/>
@@ -105,13 +126,8 @@
                                FontSize="22" FontWeight="Bold"/>
                     <TextBlock x:Name="VersionText"
                                Foreground="Gray" FontSize="13"/>
-                    <TextBlock TextWrapping="Wrap" LineHeight="22" Foreground="#333333">
-                        基于 SenseVoice 的本地语音识别工具。<LineBreak/>
-                        使用右 Alt 快捷键进行语音输入：<LineBreak/>
-                        · 短按：开始/结束长录音<LineBreak/>
-                        · 按住：松手结束短句录音<LineBreak/>
-                        Fn + ` 区域截屏：拖动选区，工具条支持 OCR 识别、复制、保存
-                    </TextBlock>
+                    <TextBlock x:Name="AboutDescriptionText"
+                               TextWrapping="Wrap" LineHeight="22" Foreground="#333333"/>
                     <HyperlinkButton Content="官方文档"
                                      NavigateUri="https://my.feishu.cn/wiki/EyJswQiaBiaOlzkguzPc52mAn8b?from=from_copylink"
                                      HorizontalAlignment="Left"/>

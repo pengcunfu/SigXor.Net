@@ -14,9 +14,15 @@ namespace SigXor
             "config.json"
         );
 
-        /// <summary>右 Alt 按住超过该秒数视为长按模式，否则为点击切换</summary>
+        /// <summary>语音快捷键按住超过该秒数视为长按模式，否则为点击切换</summary>
         [JsonPropertyName("altHoldThreshold")]
         public double AltHoldThreshold { get; set; } = 0.4;
+
+        /// <summary>
+        /// 语音输入快捷键：right-alt / left-alt / right-ctrl / left-ctrl / caps-lock
+        /// </summary>
+        [JsonPropertyName("voiceShortcut")]
+        public string VoiceShortcut { get; set; } = "right-alt";
 
         // 音频录制设置
         [JsonPropertyName("sampleRate")]
@@ -33,7 +39,7 @@ namespace SigXor
         public string RecognitionEngine { get; set; } = "sensevoice";
 
         [JsonPropertyName("recognitionLanguage")]
-        public string RecognitionLanguage { get; set; } = "zh-CN";
+        public string RecognitionLanguage { get; set; } = "auto";
 
         [JsonPropertyName("confidenceThreshold")]
         public double ConfidenceThreshold { get; set; } = 0.6;
@@ -45,9 +51,15 @@ namespace SigXor
         [JsonPropertyName("useClipboard")]
         public bool UseClipboard { get; set; } = true;
 
-        /// <summary>是否启用 Fn + ` 截屏快捷键（实际监听 ` 键）</summary>
+        /// <summary>是否启用区域截屏快捷键</summary>
         [JsonPropertyName("enableScreenshotShortcut")]
         public bool EnableScreenshotShortcut { get; set; } = true;
+
+        /// <summary>
+        /// 截屏快捷键修饰键：alt / ctrl / ctrl+shift / win（主键固定为 ` ~）
+        /// </summary>
+        [JsonPropertyName("screenshotShortcut")]
+        public string ScreenshotShortcut { get; set; } = "alt";
 
         // 应用程序设置
         [JsonPropertyName("silentStart")]
@@ -109,6 +121,8 @@ namespace SigXor
                     var config = JsonSerializer.Deserialize<Config>(json, JsonOptions);
                     if (config != null)
                     {
+                        config.ScreenshotShortcut = NormalizeScreenshotShortcut(config.ScreenshotShortcut);
+                        config.VoiceShortcut = NormalizeVoiceShortcut(config.VoiceShortcut);
                         _instance = config;
                         return config;
                     }
@@ -128,6 +142,9 @@ namespace SigXor
         {
             try
             {
+                ScreenshotShortcut = NormalizeScreenshotShortcut(ScreenshotShortcut);
+                VoiceShortcut = NormalizeVoiceShortcut(VoiceShortcut);
+
                 var directory = Path.GetDirectoryName(ConfigPath);
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
@@ -144,18 +161,71 @@ namespace SigXor
             }
         }
 
+        public static string NormalizeScreenshotShortcut(string? value) =>
+            value?.Trim().ToLowerInvariant() switch
+            {
+                "ctrl" or "control" => "ctrl",
+                "ctrl+shift" or "control+shift" => "ctrl+shift",
+                "win" or "windows" or "meta" => "win",
+                _ => "alt"
+            };
+
+        public static string FormatScreenshotShortcut(string? value) =>
+            FormatScreenshotShortcut(value, voiceShortcut: null);
+
+        public static string FormatScreenshotShortcut(string? value, string? voiceShortcut) =>
+            NormalizeScreenshotShortcut(value) switch
+            {
+                "ctrl" => NormalizeVoiceShortcut(voiceShortcut) switch
+                {
+                    "left-ctrl" => "右 Ctrl + `",
+                    "right-ctrl" => "左 Ctrl + `",
+                    _ => "Ctrl + `"
+                },
+                "ctrl+shift" => NormalizeVoiceShortcut(voiceShortcut) switch
+                {
+                    "left-ctrl" => "右 Ctrl + Shift + `",
+                    "right-ctrl" => "左 Ctrl + Shift + `",
+                    _ => "Ctrl + Shift + `"
+                },
+                "win" => "Win + `",
+                _ => NormalizeVoiceShortcut(voiceShortcut) == "left-alt" ? "右 Alt + `" : "左 Alt + `"
+            };
+
+        public static string NormalizeVoiceShortcut(string? value) =>
+            value?.Trim().ToLowerInvariant() switch
+            {
+                "left-alt" or "lalt" or "leftalt" => "left-alt",
+                "right-ctrl" or "rctrl" or "rightctrl" => "right-ctrl",
+                "left-ctrl" or "lctrl" or "leftctrl" => "left-ctrl",
+                "caps-lock" or "capslock" or "caps" => "caps-lock",
+                _ => "right-alt"
+            };
+
+        public static string FormatVoiceShortcut(string? value) =>
+            NormalizeVoiceShortcut(value) switch
+            {
+                "left-alt" => "左 Alt",
+                "right-ctrl" => "右 Ctrl",
+                "left-ctrl" => "左 Ctrl",
+                "caps-lock" => "Caps Lock",
+                _ => "右 Alt"
+            };
+
         public void ResetToDefaults()
         {
             AltHoldThreshold = 0.4;
+            VoiceShortcut = "right-alt";
             SampleRate = 16000;
             Channels = 1;
             BitDepth = 16;
             RecognitionEngine = "sensevoice";
-            RecognitionLanguage = "zh-CN";
+            RecognitionLanguage = "auto";
             ConfidenceThreshold = 0.6;
             TypingDelay = 0.05;
             UseClipboard = true;
             EnableScreenshotShortcut = true;
+            ScreenshotShortcut = "alt";
             SilentStart = false;
             MinimizeToTray = true;
             AutoStartWithWindows = false;

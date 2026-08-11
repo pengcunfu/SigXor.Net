@@ -5,7 +5,9 @@ namespace SigXor;
 public sealed class NoOpKeyboardHook : IKeyboardHookService
 {
     public int HoldThresholdMs { get; set; } = 400;
+    public string VoiceShortcut { get; set; } = "right-alt";
     public bool ScreenshotEnabled { get; set; } = true;
+    public string ScreenshotModifier { get; set; } = "alt";
     public bool EscapeCaptureEnabled { get; set; }
     public bool IsSupported => false;
 

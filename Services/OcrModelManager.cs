@@ -26,9 +26,9 @@ public static class OcrModelManager
     public const string V6RecFileName = "PP-OCRv6_rec_small.onnx";
     public const string V6DictFileName = "ppocrv6_dict.txt";
 
-    // ---- PP-OCRv5（备选） ----
-    public const string V5DetFileName = "ch_PP-OCRv5_mobile_det.onnx";
-    public const string V5RecFileName = "ch_PP-OCRv5_rec_mobile_infer.onnx";
+    // ---- PP-OCRv5（备选，文件名与 RapidOCR ModelScope 仓库一致） ----
+    public const string V5DetFileName = "ch_PP-OCRv5_det_mobile.onnx";
+    public const string V5RecFileName = "ch_PP-OCRv5_rec_mobile.onnx";
     public const string V5DictFileName = "ppocrv5_dict.txt";
 
     public const string ClsFileName = "ch_PP-LCNet_x0_25_textline_ori_cls_mobile.onnx";
@@ -44,7 +44,7 @@ public static class OcrModelManager
     private const string V5DetUrl = ModelScopeBase + "onnx/PP-OCRv5/det/" + V5DetFileName;
     private const string V5RecUrl = ModelScopeBase + "onnx/PP-OCRv5/rec/" + V5RecFileName;
     private const string V5DictUrl =
-        ModelScopeBase + "paddle/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile_infer/" + V5DictFileName;
+        ModelScopeBase + "paddle/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile/" + V5DictFileName;
 
     private const long MinV6DetBytes = 2L * 1024 * 1024;
     private const long MinV6RecBytes = 10L * 1024 * 1024;
@@ -193,12 +193,16 @@ public static class OcrModelManager
             if (File.Exists(tempPath))
                 File.Delete(tempPath);
 
-            using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+            using var client = CreateDownloadClient();
             using var response = await client.GetAsync(
                 url,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                status?.Invoke($"{displayName}下载失败: HTTP {(int)response.StatusCode}");
+                return false;
+            }
 
             var total = response.Content.Headers.ContentLength ?? 0;
             await using var httpStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -242,5 +246,15 @@ public static class OcrModelManager
             status?.Invoke($"{displayName}下载失败: {ex.Message}");
             return false;
         }
+    }
+
+    private static HttpClient CreateDownloadClient()
+    {
+        // ModelScope rejects bare HttpClient requests with 403 without a User-Agent.
+        var client = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SigXor/1.0");
+        client.DefaultRequestHeaders.Accept.ParseAdd("*/*");
+        return client;
     }
 }

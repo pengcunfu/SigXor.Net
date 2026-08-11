@@ -118,6 +118,8 @@ namespace SigXor
                     return false;
                 }
 
+                TryDeleteModelArchive();
+
                 var config = BuildRecognizerConfig();
                 _recognizer = new OfflineRecognizer(config);
 
@@ -199,6 +201,7 @@ namespace SigXor
         {
             if (IsModelReady())
             {
+                TryDeleteModelArchive();
                 StatusChanged?.Invoke(this, "SenseVoice 模型已就绪");
                 return true;
             }
@@ -239,8 +242,37 @@ namespace SigXor
                 return false;
             }
 
+            // 解压成功后删除压缩包，避免占用磁盘
+            TryDeleteModelArchive();
             StatusChanged?.Invoke(this, "SenseVoice 模型准备完成");
             return true;
+        }
+
+        private static void TryDeleteModelArchive()
+        {
+            var modelsDir = SpeechModelManager.ModelsDirectory;
+            var archive = Path.Combine(modelsDir, ModelArchiveName);
+            var temp = archive + ".download";
+
+            try
+            {
+                if (File.Exists(archive))
+                    File.Delete(archive);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"删除模型压缩包失败: {ex.Message}");
+            }
+
+            try
+            {
+                if (File.Exists(temp))
+                    File.Delete(temp);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"删除模型临时下载文件失败: {ex.Message}");
+            }
         }
 
         private static bool IsArchiveValid(string archivePath)
