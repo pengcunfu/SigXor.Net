@@ -820,7 +820,7 @@ public partial class MainWindow : Window
                 };
             }
 
-            // 保留预览框，仅关闭工具条；结果窗口相对预览框居中
+            // 保留预览框坐标用于居中，然后隐藏预览；仅关闭工具条
             if (_previewWindow != null)
             {
                 var scale = _previewWindow.RenderScaling > 0 ? _previewWindow.RenderScaling : 1.0;
@@ -831,6 +831,7 @@ public partial class MainWindow : Window
                     _previewWindow.Position.Y,
                     width,
                     height);
+                _previewWindow.Hide();
             }
 
             var anchor = _previewScreenRect;
