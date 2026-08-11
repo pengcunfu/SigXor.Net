@@ -54,9 +54,15 @@ public static class OcrModelManager
 
     private static string BaseDirectory => AppDomain.CurrentDomain.BaseDirectory;
 
-    public static string V6Directory => Path.Combine(BaseDirectory, "models", "ocr", "v6");
-    public static string V5Directory => Path.Combine(BaseDirectory, "models", "ocr", "v5");
+    public static string ModelsDirectory => Path.Combine(BaseDirectory, "models", "ocr");
+    public static string V6Directory => Path.Combine(ModelsDirectory, "v6");
+    public static string V5Directory => Path.Combine(ModelsDirectory, "v5");
     public static string ClsPath => Path.Combine(V6Directory, ClsFileName);
+
+    public static string StatusText =>
+        IsReadyV6() ? "已就绪（PP-OCRv6）"
+        : IsReadyV5() ? "已就绪（PP-OCRv5）"
+        : "未下载";
 
     private static string V6DetPath => Path.Combine(V6Directory, V6DetFileName);
     private static string V6RecPath => Path.Combine(V6Directory, V6RecFileName);

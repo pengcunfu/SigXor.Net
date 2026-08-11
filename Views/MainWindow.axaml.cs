@@ -43,6 +43,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _statusTimer;
     private readonly Config _config;
     private CancellationTokenSource? _downloadCts;
+    private CancellationTokenSource? _ocrDownloadCts;
     private WriteableBitmap? _capturedFullScreen;
     private WriteableBitmap? _capturedRegion;
     private PixelRect _virtualBounds;
@@ -64,6 +65,7 @@ public partial class MainWindow : Window
         SpeechModelManager.ModelsChanged += OnModelsChanged;
         LoadUserSettings();
         InitializeServices();
+        UpdateOcrActionButtons();
 
         _statusTimer = new DispatcherTimer
         {
@@ -1011,6 +1013,85 @@ public partial class MainWindow : Window
         OpenModelFolderButton.IsEnabled = !busy;
     }
 
+    private void UpdateOcrActionButtons()
+    {
+        if (DownloadOcrButton == null || OpenOcrFolderButton == null || OcrStatusText == null)
+            return;
+
+        var ready = OcrModelManager.IsReady();
+        var busy = _ocrDownloadCts != null;
+
+        if (!busy)
+            OcrStatusText.Text = OcrModelManager.StatusText;
+
+        DownloadOcrButton.IsVisible = !ready;
+        OpenOcrFolderButton.IsVisible = ready;
+        DownloadOcrButton.IsEnabled = !busy;
+        OpenOcrFolderButton.IsEnabled = !busy;
+    }
+
+    private async void DownloadOcrButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (OcrModelManager.IsReady())
+        {
+            UpdateOcrActionButtons();
+            return;
+        }
+
+        _ocrDownloadCts = new CancellationTokenSource();
+        UpdateOcrActionButtons();
+        OcrStatusText.Text = "准备下载...";
+
+        try
+        {
+            var ok = await OcrModelManager.EnsureReadyAsync(
+                msg => Dispatcher.UIThread.Post(() => OcrStatusText.Text = msg),
+                _ocrDownloadCts.Token);
+
+            OcrStatusText.Text = ok ? OcrModelManager.StatusText : "下载失败";
+            if (!ok)
+                await DialogHelper.ShowWarningAsync(this, "OCR 模型下载失败，请检查网络后重试。", "下载失败");
+        }
+        catch (OperationCanceledException)
+        {
+            OcrStatusText.Text = "已取消下载";
+        }
+        catch (Exception ex)
+        {
+            OcrStatusText.Text = "下载失败";
+            await DialogHelper.ShowWarningAsync(this, ex.Message, "下载失败");
+        }
+        finally
+        {
+            _ocrDownloadCts?.Dispose();
+            _ocrDownloadCts = null;
+            UpdateOcrActionButtons();
+        }
+    }
+
+    private void OpenOcrFolderButton_Click(object? sender, RoutedEventArgs e)
+    {
+        var dir = OcrModelManager.ModelsDirectory;
+        Directory.CreateDirectory(dir);
+        OpenDirectory(dir);
+    }
+
+    private static void OpenDirectory(string dir)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            Process.Start("xdg-open", dir);
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            Process.Start("open", dir);
+        }
+    }
+
     private async void DownloadModelButton_Click(object? sender, RoutedEventArgs e)
     {
         var engineId = _config.RecognitionEngine;
@@ -1059,19 +1140,7 @@ public partial class MainWindow : Window
     {
         var dir = SpeechModelManager.ModelsDirectory;
         Directory.CreateDirectory(dir);
-
-        if (OperatingSystem.IsWindows())
-        {
-            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
-        }
-        else if (OperatingSystem.IsLinux())
-        {
-            Process.Start("xdg-open", dir);
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            Process.Start("open", dir);
-        }
+        OpenDirectory(dir);
     }
 
     private async void EngineComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -1247,6 +1316,9 @@ public partial class MainWindow : Window
             _downloadCts?.Cancel();
             _downloadCts?.Dispose();
             _downloadCts = null;
+            _ocrDownloadCts?.Cancel();
+            _ocrDownloadCts?.Dispose();
+            _ocrDownloadCts = null;
             _statusTimer?.Stop();
             _keyboardHook?.Dispose();
             _audioCapture?.Dispose();

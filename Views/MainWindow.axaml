@@ -40,6 +40,14 @@
                             <Button x:Name="OpenModelFolderButton" Content="打开模型目录" Margin="8,0,0,0" Padding="8,2"
                                     IsVisible="False" Click="OpenModelFolderButton_Click"/>
                         </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                            <TextBlock Text="OCR 模型:" Width="80" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="OcrStatusText" Text="未下载" Foreground="Gray" VerticalAlignment="Center"/>
+                            <Button x:Name="DownloadOcrButton" Content="下载" Margin="8,0,0,0" Padding="8,2"
+                                    IsVisible="False" Click="DownloadOcrButton_Click"/>
+                            <Button x:Name="OpenOcrFolderButton" Content="打开模型目录" Margin="8,0,0,0" Padding="8,2"
+                                    IsVisible="False" Click="OpenOcrFolderButton_Click"/>
+                        </StackPanel>
                     </StackPanel>
 
                     <TextBlock Grid.Row="2"
