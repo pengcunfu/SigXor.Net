@@ -21,6 +21,7 @@ public partial class ScreenshotToolbar : Window
     private PixelPoint _windowDownPosition;
 
     public event EventHandler? OcrRequested;
+    public event EventHandler? ColorPickRequested;
     public event EventHandler? CopyRequested;
     public event EventHandler? SaveRequested;
     public event EventHandler? CloseRequested;
@@ -32,6 +33,7 @@ public partial class ScreenshotToolbar : Window
         _toastTimer.Tick += OnToastTimerTick;
         Cursor = new Cursor(StandardCursorType.SizeAll);
         OcrButton.Cursor = new Cursor(StandardCursorType.Arrow);
+        ColorPickButton.Cursor = new Cursor(StandardCursorType.Arrow);
         CopyButton.Cursor = new Cursor(StandardCursorType.Arrow);
         SaveButton.Cursor = new Cursor(StandardCursorType.Arrow);
         DoneButton.Cursor = new Cursor(StandardCursorType.Arrow);
@@ -65,6 +67,7 @@ public partial class ScreenshotToolbar : Window
     {
         OcrButton.Content = message;
         OcrButton.IsEnabled = false;
+        ColorPickButton.IsEnabled = false;
         CopyButton.IsEnabled = false;
         SaveButton.IsEnabled = false;
         DoneButton.IsEnabled = false;
@@ -77,6 +80,7 @@ public partial class ScreenshotToolbar : Window
     {
         OcrButton.Content = "OCR 识别";
         OcrButton.IsEnabled = true;
+        ColorPickButton.IsEnabled = true;
         CopyButton.IsEnabled = true;
         SaveButton.IsEnabled = true;
         DoneButton.IsEnabled = true;
@@ -205,6 +209,8 @@ public partial class ScreenshotToolbar : Window
     }
 
     private void OnOcrClick(object? sender, RoutedEventArgs e) => OcrRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnColorPickClick(object? sender, RoutedEventArgs e) => ColorPickRequested?.Invoke(this, EventArgs.Empty);
 
     private void OnCopyClick(object? sender, RoutedEventArgs e) => CopyRequested?.Invoke(this, EventArgs.Empty);
 

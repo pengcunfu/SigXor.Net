@@ -70,7 +70,8 @@ public static class ScreenshotHelper
     }
 
     /// <summary>从整屏/整图位图中裁剪出指定区域，返回新的 WriteableBitmap（BGRA）。</summary>
-    public static WriteableBitmap? CropBitmap(WriteableBitmap source, PixelRect rect)
+    /// <param name="dpi">显示 DPI；高分屏预览应传 96×Scaling，才能按物理像素 1:1 清晰显示。</param>
+    public static WriteableBitmap? CropBitmap(WriteableBitmap source, PixelRect rect, Vector? dpi = null)
     {
         if (source == null)
             return null;
@@ -80,9 +81,13 @@ public static class ScreenshotHelper
         if (clipped.Width <= 0 || clipped.Height <= 0)
             return null;
 
+        var bitmapDpi = dpi ?? new Vector(96, 96);
+        if (bitmapDpi.X <= 0 || bitmapDpi.Y <= 0)
+            bitmapDpi = new Vector(96, 96);
+
         var cropped = new WriteableBitmap(
             new PixelSize(clipped.Width, clipped.Height),
-            new Vector(96, 96),
+            bitmapDpi,
             PixelFormats.Bgra8888,
             AlphaFormat.Opaque);
 

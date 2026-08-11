@@ -2,17 +2,20 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 
 namespace SigXor;
 
 /// <summary>
-/// 截图预览窗口：固定在选区位置显示裁剪出的图像（1:1 物理像素），
-/// 让用户在使用工具条时能直接看到截屏内容。
+/// 截图预览窗口：固定在选区位置按物理像素 1:1 显示裁剪图像，
+/// 让用户在使用工具条时能直接看到高清截屏内容。
 /// </summary>
 public partial class RegionPreviewWindow : Window
 {
     private PixelRect _screenRect;
+    private double _targetScale = 1.0;
     private bool _dragging;
     private PixelPoint _pointerDownScreen;
     private PixelPoint _windowDownPosition;
@@ -24,16 +27,20 @@ public partial class RegionPreviewWindow : Window
     {
         InitializeComponent();
         Cursor = new Cursor(StandardCursorType.SizeAll);
+        RenderOptions.SetBitmapInterpolationMode(this, BitmapInterpolationMode.None);
+        RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
     }
 
     public void ShowAt(WriteableBitmap bitmap, PixelRect screenRect, double estimatedScale)
     {
         PreviewImage.Source = bitmap;
+        RenderOptions.SetBitmapInterpolationMode(PreviewImage, BitmapInterpolationMode.None);
         _screenRect = screenRect;
+        _targetScale = estimatedScale > 0 ? estimatedScale : 1.0;
 
-        var scale = estimatedScale > 0 ? estimatedScale : 1.0;
-        Width = screenRect.Width / scale;
-        Height = screenRect.Height / scale;
+        // 窗口 DIP 尺寸 = 物理像素 / Scaling，与位图 DPI(=96×Scaling) 对齐，避免二次缩放
+        Width = screenRect.Width / _targetScale;
+        Height = screenRect.Height / _targetScale;
         Position = new PixelPoint(screenRect.X, screenRect.Y);
 
         Opened += OnOpened;
@@ -43,11 +50,16 @@ public partial class RegionPreviewWindow : Window
     private void OnOpened(object? sender, EventArgs e)
     {
         Opened -= OnOpened;
-        // 显示后按真实渲染缩放精确对齐选区位置
-        var scale = RenderScaling > 0 ? RenderScaling : 1.0;
+
+        // 优先用窗口真实 RenderScaling；若与目标屏不一致，仍按目标屏 Scaling 保持 1:1
+        var scale = RenderScaling > 0 ? RenderScaling : _targetScale;
+        if (Math.Abs(scale - _targetScale) > 0.01 && _targetScale > 0)
+            scale = _targetScale;
+
         Width = _screenRect.Width / scale;
         Height = _screenRect.Height / scale;
         Position = new PixelPoint(_screenRect.X, _screenRect.Y);
+        UpdateLayout();
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)

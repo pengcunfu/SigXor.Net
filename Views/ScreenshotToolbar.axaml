@@ -76,6 +76,7 @@
         <StackPanel Spacing="4">
             <StackPanel Orientation="Horizontal" Spacing="2">
                 <Button x:Name="OcrButton" Classes="toolbar primary" Content="OCR 识别" Click="OnOcrClick"/>
+                <Button x:Name="ColorPickButton" Classes="toolbar" Content="取色" Click="OnColorPickClick"/>
                 <Border Classes="sep"/>
                 <Button x:Name="CopyButton" Classes="toolbar" Content="复制图片" Click="OnCopyClick"/>
                 <Button x:Name="SaveButton" Classes="toolbar" Content="保存" Click="OnSaveClick"/>

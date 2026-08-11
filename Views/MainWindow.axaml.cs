@@ -51,7 +51,9 @@ public partial class MainWindow : Window
     private RegionPreviewWindow? _previewWindow;
     private ScreenshotToolbar? _screenshotToolbar;
     private OcrResultWindow? _ocrResultWindow;
+    private ColorPickerOverlay? _colorPicker;
     private OcrEngine? _ocrEngine;
+    private string? _lastCopiedColor;
 
     public MainWindow()
     {
@@ -528,13 +530,19 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>截屏流程期间按下 ESC：退出截屏（关闭预览/工具条，不复制）。</summary>
+    /// <summary>截屏流程期间按下 ESC：取色中则只退出取色，否则退出截屏。</summary>
     private void OnEscapePressed(object? sender, EventArgs e)
     {
         try
         {
             Dispatcher.UIThread.Post(() =>
             {
+                if (_colorPicker != null)
+                {
+                    _colorPicker.Close();
+                    return;
+                }
+
                 if (_isCapturing)
                     FinishRegionCapture(restoreWindow: true);
             });
@@ -555,7 +563,18 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var region = ScreenshotHelper.CropBitmap(_capturedFullScreen, rect);
+            var screenRect = new PixelRect(
+                _virtualBounds.X + rect.X,
+                _virtualBounds.Y + rect.Y,
+                rect.Width,
+                rect.Height);
+
+            // 按选区所在屏幕 Scaling 写入位图 DPI，预览才能物理像素 1:1 高清显示
+            var scale = GetScaleForScreenRect(screenRect);
+            var region = ScreenshotHelper.CropBitmap(
+                _capturedFullScreen,
+                rect,
+                new Vector(96 * scale, 96 * scale));
             _capturedFullScreen.Dispose();
             _capturedFullScreen = null;
 
@@ -572,21 +591,16 @@ public partial class MainWindow : Window
             _captureOverlay?.Close();
             _captureOverlay = null;
 
-            var screenRect = new PixelRect(
-                _virtualBounds.X + rect.X,
-                _virtualBounds.Y + rect.Y,
-                rect.Width,
-                rect.Height);
-
             _previewWindow?.Close();
             _previewWindow = new RegionPreviewWindow();
             _previewWindow.DragPositionChanged += OnPreviewPositionChanged;
             _previewWindow.Closed += OnPreviewWindowClosed;
-            _previewWindow.ShowAt(region, screenRect, RenderScaling);
+            _previewWindow.ShowAt(region, screenRect, scale);
 
             _screenshotToolbar?.Close();
             _screenshotToolbar = new ScreenshotToolbar();
             _screenshotToolbar.OcrRequested += OnToolbarOcrRequested;
+            _screenshotToolbar.ColorPickRequested += OnToolbarColorPickRequested;
             _screenshotToolbar.CopyRequested += OnToolbarCopyRequested;
             _screenshotToolbar.SaveRequested += OnToolbarSaveRequested;
             _screenshotToolbar.CloseRequested += OnToolbarCloseRequested;
@@ -643,22 +657,82 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnToolbarColorPickRequested(object? sender, EventArgs e)
+    {
+        if (_ocrBusy || _colorPicker != null || !_isCapturing)
+            return;
+
+        try
+        {
+            var freeze = ScreenshotHelper.CaptureFullScreen();
+            if (freeze == null)
+            {
+                _screenshotToolbar?.ShowToast("取色失败：无法截取屏幕");
+                return;
+            }
+
+            _lastCopiedColor = null;
+            _previewWindow?.Hide();
+            _screenshotToolbar?.Hide();
+
+            var bounds = GetVirtualScreenBounds();
+            var scale = GetScaleForScreenRect(bounds);
+            var picker = new ColorPickerOverlay();
+            picker.ColorCopied += (_, value) => _lastCopiedColor = value;
+            picker.Cancelled += (_, _) => { /* Closed 里统一恢复 */ };
+            picker.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(_colorPicker, picker))
+                    _colorPicker = null;
+                RestorePreviewAfterColorPick();
+            };
+            _colorPicker = picker;
+            picker.ShowAt(freeze, bounds, scale);
+        }
+        catch (Exception ex)
+        {
+            ShowNotification("取色失败", ex.Message);
+            RestorePreviewAfterColorPick();
+        }
+    }
+
+    private void RestorePreviewAfterColorPick()
+    {
+        if (!_isCapturing)
+            return;
+
+        if (_previewWindow != null && !_previewWindow.IsVisible)
+            _previewWindow.Show();
+
+        if (_screenshotToolbar != null)
+        {
+            if (!_screenshotToolbar.IsVisible)
+                _screenshotToolbar.Show();
+            ForceWindowTopmost(_screenshotToolbar);
+
+            if (!string.IsNullOrEmpty(_lastCopiedColor))
+            {
+                _screenshotToolbar.ShowToast($"已复制 {_lastCopiedColor}");
+                ShowNotification("已复制颜色", _lastCopiedColor);
+                _lastCopiedColor = null;
+            }
+        }
+    }
+
     private void OnToolbarCopyRequested(object? sender, EventArgs e)
     {
+        if (_ocrBusy)
+            return;
+
         var bitmap = _capturedRegion;
         if (bitmap == null)
             return;
 
-        if (ScreenshotHelper.CopyBitmapToClipboard(bitmap))
-        {
-            _screenshotToolbar?.ShowToast("已复制到剪贴板");
-            ShowNotification("已复制", "选区图片已复制到剪贴板");
-        }
-        else
-        {
-            _screenshotToolbar?.ShowToast("复制失败");
-            ShowNotification("复制失败", "无法写入剪贴板");
-        }
+        var copied = ScreenshotHelper.CopyBitmapToClipboard(bitmap);
+        FinishRegionCapture(restoreWindow: true);
+        ShowNotification(
+            copied ? "已复制" : "复制失败",
+            copied ? "选区图片已复制到剪贴板" : "无法写入剪贴板");
     }
 
     private async void OnToolbarSaveRequested(object? sender, EventArgs e)
@@ -723,14 +797,8 @@ public partial class MainWindow : Window
         if (_ocrBusy)
             return;
 
-        var copied = false;
-        if (_capturedRegion != null)
-            copied = ScreenshotHelper.CopyBitmapToClipboard(_capturedRegion);
-
+        // 完成：不复制，直接关闭预览与工具条
         FinishRegionCapture(restoreWindow: true);
-        ShowNotification(
-            copied ? "已复制" : "复制失败",
-            copied ? "截图已复制到剪贴板" : "无法写入剪贴板");
     }
 
     /// <summary>立即弹出 OCR 结果对话框（忙碌状态，由用户决定复制或关闭）。</summary>
@@ -836,6 +904,13 @@ public partial class MainWindow : Window
         _captureOverlay?.Close();
         _captureOverlay = null;
 
+        if (_colorPicker != null)
+        {
+            var picker = _colorPicker;
+            _colorPicker = null;
+            picker.Close();
+        }
+
         ClosePreviewAndToolbar();
 
         var ocrWindow = _ocrResultWindow;
@@ -866,6 +941,15 @@ public partial class MainWindow : Window
         }
 
         return union ?? Screens.Primary?.Bounds ?? new PixelRect(0, 0, 1920, 1080);
+    }
+
+    private double GetScaleForScreenRect(PixelRect screenRect)
+    {
+        var screen = Screens.All.FirstOrDefault(s => s.Bounds.Contains(screenRect.Position))
+                     ?? Screens.All.FirstOrDefault(s => s.Bounds.Intersects(screenRect))
+                     ?? Screens.Primary;
+        var scale = screen?.Scaling ?? RenderScaling;
+        return scale > 0 ? scale : 1.0;
     }
 
     private void StartRecording(RecordingTrigger trigger)
@@ -1425,6 +1509,8 @@ public partial class MainWindow : Window
             _previewWindow = null;
             _screenshotToolbar?.Close();
             _screenshotToolbar = null;
+            _colorPicker?.Close();
+            _colorPicker = null;
             _ocrResultWindow?.Close();
             _ocrResultWindow = null;
             _capturedFullScreen?.Dispose();

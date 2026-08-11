@@ -10,12 +10,18 @@
         Focusable="False"
         CanResize="False"
         WindowStartupLocation="Manual">
-    <Border x:Name="DragSurface"
-            BorderBrush="#E033A6FF" BorderThickness="1" Background="Transparent"
-            PointerPressed="OnPointerPressed"
-            PointerMoved="OnPointerMoved"
-            PointerReleased="OnPointerReleased"
-            PointerCaptureLost="OnPointerCaptureLost">
-        <Image x:Name="PreviewImage" Stretch="Fill"/>
-    </Border>
+    <Panel>
+        <!-- 图片铺满窗口客户区，避免边框占用导致缩放发糊 -->
+        <Image x:Name="PreviewImage"
+               Stretch="Fill"
+               RenderOptions.BitmapInterpolationMode="None"/>
+        <Border x:Name="DragSurface"
+                BorderBrush="#E033A6FF"
+                BorderThickness="1"
+                Background="Transparent"
+                PointerPressed="OnPointerPressed"
+                PointerMoved="OnPointerMoved"
+                PointerReleased="OnPointerReleased"
+                PointerCaptureLost="OnPointerCaptureLost"/>
+    </Panel>
 </Window>

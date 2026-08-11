@@ -1,0 +1,83 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SigXor.ColorPickerOverlay"
+        Title="ColorPickerOverlay"
+        SystemDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ShowActivated="True"
+        Focusable="True"
+        CanResize="False"
+        WindowStartupLocation="Manual">
+    <Panel x:Name="RootPanel" Background="Transparent"
+           PointerMoved="OnPointerMoved"
+           PointerPressed="OnPointerPressed"
+           PointerWheelChanged="OnPointerWheelChanged">
+        <Border x:Name="FreezeBackground" IsHitTestVisible="False"/>
+
+        <!-- 放大镜卡片 -->
+        <Border x:Name="MagnifierCard"
+                Background="#F2141418"
+                BorderBrush="#66FFFFFF"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="8"
+                BoxShadow="0 10 28 0 #80000000"
+                IsHitTestVisible="False"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top">
+            <StackPanel Spacing="8" Width="168">
+                <Border Background="#0A0A0A"
+                        CornerRadius="8"
+                        BorderBrush="#55FFFFFF"
+                        BorderThickness="1"
+                        ClipToBounds="True"
+                        Width="152"
+                        Height="152"
+                        HorizontalAlignment="Center">
+                    <Panel>
+                        <Image x:Name="MagnifierImage"
+                               Stretch="Fill"
+                               RenderOptions.BitmapInterpolationMode="None"/>
+                        <!-- 中心十字准星 -->
+                        <Canvas Width="152" Height="152" IsHitTestVisible="False">
+                            <Line StartPoint="76,0" EndPoint="76,152" Stroke="#E0FFFFFF" StrokeThickness="1"/>
+                            <Line StartPoint="0,76" EndPoint="152,76" Stroke="#E0FFFFFF" StrokeThickness="1"/>
+                            <Rectangle Canvas.Left="69" Canvas.Top="69"
+                                       Width="14" Height="14"
+                                       Stroke="#FFFFD166" StrokeThickness="1.5"/>
+                        </Canvas>
+                    </Panel>
+                </Border>
+
+                <Grid ColumnDefinitions="36,*" RowDefinitions="Auto,Auto">
+                    <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="2"
+                            x:Name="ColorSwatch"
+                            Width="28" Height="28"
+                            CornerRadius="7"
+                            BorderBrush="#88FFFFFF"
+                            BorderThickness="1"
+                            VerticalAlignment="Center"
+                            Margin="0,0,8,0"/>
+                    <TextBlock x:Name="ColorValueText"
+                               Grid.Row="0" Grid.Column="1"
+                               Text="#000000"
+                               Foreground="White"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               FontFamily="Consolas, Cascadia Mono, Courier New"
+                               VerticalAlignment="Center"/>
+                    <TextBlock x:Name="HintText"
+                               Grid.Row="1" Grid.Column="1"
+                               Text="点击/C 复制 · Shift 切换 · Esc 退出"
+                               Foreground="#99FFFFFF"
+                               FontSize="10.5"
+                               TextWrapping="Wrap"
+                               Margin="0,2,0,0"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </Panel>
+</Window>
