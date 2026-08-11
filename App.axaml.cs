@@ -24,6 +24,8 @@ public partial class App : Application
 
             if (LaunchSilent)
                 mainWindow.PrepareSilentStartup();
+
+            SingleInstance.StartActivateListener(mainWindow.BringToFront);
         }
 
         base.OnFrameworkInitializationCompleted();

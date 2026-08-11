@@ -64,7 +64,7 @@ public class TextSimulator
             var clipboard = GetClipboard();
             if (clipboard == null)
                 throw new InvalidOperationException("无法访问剪贴板");
-            originalText = await clipboard.GetTextAsync();
+            originalText = await clipboard.TryGetTextAsync();
         }
 
         if (OperatingSystem.IsWindows())

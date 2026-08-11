@@ -125,13 +125,43 @@ public partial class MainWindow : Window
     private static extern bool SetWindowPos(
         nint hWnd, nint hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 
+    public void BringToFront() => ShowMainWindow();
+
     private void ShowMainWindow()
     {
         Show();
         ShowInTaskbar = true;
         WindowState = WindowState.Normal;
         Activate();
+
+        // Briefly toggle Topmost so the window reliably rises above others.
+        Topmost = true;
+        Topmost = false;
+
+        if (OperatingSystem.IsWindows())
+            ForceForegroundWindows();
     }
+
+    private void ForceForegroundWindows()
+    {
+        var handle = TryGetPlatformHandle()?.Handle ?? nint.Zero;
+        if (handle == nint.Zero)
+            return;
+
+        const int swRestore = 9;
+        ShowWindow(handle, swRestore);
+        BringWindowToTop(handle);
+        SetForegroundWindow(handle);
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(nint hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(nint hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(nint hWnd);
 
     private void ExitApplication()
     {
