@@ -581,6 +581,7 @@ public partial class MainWindow : Window
             _previewWindow?.Close();
             _previewWindow = new RegionPreviewWindow();
             _previewWindow.DragPositionChanged += OnPreviewPositionChanged;
+            _previewWindow.Closed += OnPreviewWindowClosed;
             _previewWindow.ShowAt(region, screenRect, RenderScaling);
 
             _screenshotToolbar?.Close();
@@ -612,47 +613,34 @@ public partial class MainWindow : Window
         if (bitmap == null || _ocrBusy)
             return;
 
-        string? toastMessage = null;
         _ocrBusy = true;
-        _screenshotToolbar?.SetBusy("准备中...");
-        ShowOcrResultDialog(); // 立即弹出结果窗口并显示进度
+        ShowOcrResultDialog(); // 立即弹出结果窗口；预览与工具条会一并关闭
         try
         {
             _ocrEngine ??= new OcrEngine();
             var text = await _ocrEngine.RecognizeAsync(bitmap,
-                msg => Dispatcher.UIThread.Post(() =>
-                {
-                    _screenshotToolbar?.SetBusy(msg);
-                    _ocrResultWindow?.SetBusy(msg);
-                }));
+                msg => Dispatcher.UIThread.Post(() => _ocrResultWindow?.SetBusy(msg)));
 
             if (string.IsNullOrWhiteSpace(text))
             {
-                toastMessage = "未识别到文字";
                 _ocrResultWindow?.ShowFailure("未识别到文字");
                 ShowNotification("OCR", "未识别到文字");
             }
             else
             {
-                toastMessage = "识别完成";
                 _ocrResultWindow?.ShowResult(text);
                 ShowNotification("OCR 识别完成", "已弹出识别结果窗口");
             }
         }
         catch (Exception ex)
         {
-            toastMessage = "OCR 识别失败";
             _ocrResultWindow?.ShowFailure($"识别失败: {ex.Message}");
             ShowNotification("OCR 识别失败", ex.Message);
         }
         finally
         {
             _ocrBusy = false;
-            _screenshotToolbar?.SetIdle();
         }
-
-        if (toastMessage != null)
-            _screenshotToolbar?.ShowToast(toastMessage);
     }
 
     private void OnToolbarCopyRequested(object? sender, EventArgs e)
@@ -745,7 +733,7 @@ public partial class MainWindow : Window
             copied ? "截图已复制到剪贴板" : "无法写入剪贴板");
     }
 
-    /// <summary>立即弹出 OCR 结果对话框（忙碌状态，由用户决定复制或不复制）。</summary>
+    /// <summary>立即弹出 OCR 结果对话框（忙碌状态，由用户决定复制或关闭）。</summary>
     private void ShowOcrResultDialog()
     {
         try
@@ -756,20 +744,50 @@ public partial class MainWindow : Window
                 _ocrResultWindow.Closed += (_, _) =>
                 {
                     _ocrResultWindow = null;
-                    // 关闭结果窗口后恢复预览图（截屏流程仍在进行时）
-                    if (_isCapturing && _previewWindow != null && !_previewWindow.IsVisible)
-                        _previewWindow.Show();
+                    // 关闭/复制后结束截屏流程，不要回到选区预览
+                    if (_isCapturing)
+                        FinishRegionCapture(restoreWindow: true);
                 };
             }
 
-            // OCR 识别期间不需要预览图，先隐藏，关闭结果窗口后再恢复
-            _previewWindow?.Hide();
+            // 工具条只在预览框存在时保留；进入 OCR 后关掉预览与工具条
+            ClosePreviewAndToolbar();
             _ocrResultWindow.ShowBusy("正在准备 OCR 模型...");
         }
         catch (Exception ex)
         {
             ShowNotification("OCR 结果窗口打开失败", ex.Message);
         }
+    }
+
+    private void OnPreviewWindowClosed(object? sender, EventArgs e)
+    {
+        if (ReferenceEquals(_previewWindow, sender))
+            _previewWindow = null;
+
+        // 预览框没了，工具条一并关掉
+        if (_screenshotToolbar != null)
+        {
+            var toolbar = _screenshotToolbar;
+            _screenshotToolbar = null;
+            toolbar.Close();
+        }
+    }
+
+    private void ClosePreviewAndToolbar()
+    {
+        var preview = _previewWindow;
+        _previewWindow = null;
+        if (preview != null)
+        {
+            preview.DragPositionChanged -= OnPreviewPositionChanged;
+            preview.Closed -= OnPreviewWindowClosed;
+            preview.Close();
+        }
+
+        var toolbar = _screenshotToolbar;
+        _screenshotToolbar = null;
+        toolbar?.Close();
     }
 
     /// <summary>预览窗格拖动过程中实时更新，让工具条持续跟随其下方。</summary>
@@ -809,23 +827,27 @@ public partial class MainWindow : Window
 
     private void FinishRegionCapture(bool restoreWindow)
     {
-        _captureOverlay?.Close();
-        _captureOverlay = null;
-        _previewWindow?.Close();
-        _previewWindow = null;
-        _screenshotToolbar?.Close();
-        _screenshotToolbar = null;
-        _ocrResultWindow?.Close();
-        _ocrResultWindow = null;
-        _capturedFullScreen?.Dispose();
-        _capturedFullScreen = null;
-        _capturedRegion?.Dispose();
-        _capturedRegion = null;
+        // 先清状态，避免关闭 OCR 窗口时 Closed 回调再次进入
+        var shouldRestore = restoreWindow && _isCapturing;
         _isCapturing = false;
         if (_keyboardHook != null)
             _keyboardHook.EscapeCaptureEnabled = false;
 
-        if (restoreWindow)
+        _captureOverlay?.Close();
+        _captureOverlay = null;
+
+        ClosePreviewAndToolbar();
+
+        var ocrWindow = _ocrResultWindow;
+        _ocrResultWindow = null;
+        ocrWindow?.Close();
+
+        _capturedFullScreen?.Dispose();
+        _capturedFullScreen = null;
+        _capturedRegion?.Dispose();
+        _capturedRegion = null;
+
+        if (shouldRestore)
             RestoreMainWindowAfterCapture();
     }
 

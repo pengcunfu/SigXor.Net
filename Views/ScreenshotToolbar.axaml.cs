@@ -42,6 +42,7 @@ public partial class ScreenshotToolbar : Window
     public void ShowToast(string message)
     {
         StatusText.Text = message;
+        StatusText.IsVisible = true;
         _toastTimer.Stop();
         _toastTimer.Start();
     }
@@ -69,6 +70,7 @@ public partial class ScreenshotToolbar : Window
         DoneButton.IsEnabled = false;
         _toastTimer.Stop();
         StatusText.Text = message;
+        StatusText.IsVisible = true;
     }
 
     public void SetIdle()
@@ -80,12 +82,14 @@ public partial class ScreenshotToolbar : Window
         DoneButton.IsEnabled = true;
         _toastTimer.Stop();
         StatusText.Text = string.Empty;
+        StatusText.IsVisible = false;
     }
 
     private void OnToastTimerTick(object? sender, EventArgs e)
     {
         _toastTimer.Stop();
         StatusText.Text = string.Empty;
+        StatusText.IsVisible = false;
     }
 
     private void OnOpened(object? sender, EventArgs e)

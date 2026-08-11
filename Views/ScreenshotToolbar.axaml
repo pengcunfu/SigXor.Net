@@ -12,27 +12,82 @@
         CanResize="False"
         WindowStartupLocation="Manual"
         SizeToContent="WidthAndHeight">
+    <Window.Styles>
+        <Style Selector="Button.toolbar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#F2FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+        <Style Selector="Button.toolbar:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#28FFFFFF"/>
+        </Style>
+        <Style Selector="Button.toolbar:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3DFFFFFF"/>
+        </Style>
+        <Style Selector="Button.toolbar:disabled">
+            <Setter Property="Opacity" Value="0.45"/>
+        </Style>
+        <Style Selector="Button.toolbar.primary">
+            <Setter Property="Background" Value="#2A5B8A"/>
+            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+        </Style>
+        <Style Selector="Button.toolbar.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#356EA3"/>
+        </Style>
+        <Style Selector="Button.toolbar.primary:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1F4A73"/>
+        </Style>
+        <Style Selector="Button.toolbar.done">
+            <Setter Property="Background" Value="#28FFFFFF"/>
+            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+        </Style>
+        <Style Selector="Button.toolbar.done:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3DFFFFFF"/>
+        </Style>
+        <Style Selector="Button.toolbar.done:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="Border.sep">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Height" Value="14"/>
+            <Setter Property="Background" Value="#33FFFFFF"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="4,0"/>
+        </Style>
+    </Window.Styles>
+
     <Border x:Name="ToolbarSurface"
-            Background="#F01F1F1F"
-            CornerRadius="9"
-            Padding="8,6"
-            BoxShadow="0 3 14 0 #66000000"
+            Background="#F2141418"
+            BorderBrush="#40FFFFFF"
+            BorderThickness="1"
+            CornerRadius="14"
+            Padding="6"
+            BoxShadow="0 8 24 0 #73000000"
             PointerPressed="OnPointerPressed"
             PointerMoved="OnPointerMoved"
             PointerReleased="OnPointerReleased"
             PointerCaptureLost="OnPointerCaptureLost">
-        <StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="5">
-                <Button x:Name="OcrButton" Content="OCR 识别" Padding="14,6" Click="OnOcrClick"/>
-                <Button x:Name="CopyButton" Content="复制图片" Padding="14,6" Click="OnCopyClick"/>
-                <Button x:Name="SaveButton" Content="保存" Padding="14,6" Click="OnSaveClick"/>
-                <Button x:Name="DoneButton" Content="完成" Padding="14,6" Click="OnDoneClick"/>
+        <StackPanel Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button x:Name="OcrButton" Classes="toolbar primary" Content="OCR 识别" Click="OnOcrClick"/>
+                <Border Classes="sep"/>
+                <Button x:Name="CopyButton" Classes="toolbar" Content="复制图片" Click="OnCopyClick"/>
+                <Button x:Name="SaveButton" Classes="toolbar" Content="保存" Click="OnSaveClick"/>
+                <Border Classes="sep"/>
+                <Button x:Name="DoneButton" Classes="toolbar done" Content="完成" Click="OnDoneClick"/>
             </StackPanel>
             <TextBlock x:Name="StatusText"
-                       Foreground="#D0FFFFFF"
+                       IsVisible="False"
+                       Foreground="#B8FFFFFF"
                        FontSize="11"
-                       Margin="4,5,4,0"
-                       MinWidth="240"
+                       Margin="6,2,6,2"
+                       HorizontalAlignment="Center"
                        TextAlignment="Center"
                        TextTrimming="CharacterEllipsis"/>
         </StackPanel>

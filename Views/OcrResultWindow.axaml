@@ -3,43 +3,159 @@
         x:Class="SigXor.OcrResultWindow"
         Title="OCR 识别结果"
         SystemDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
         SizeToContent="WidthAndHeight"
-        MinWidth="420"
-        MaxWidth="720"
+        MinWidth="440"
+        MaxWidth="760"
         WindowStartupLocation="CenterScreen"
         Topmost="True"
-        ShowInTaskbar="False">
-    <StackPanel Margin="16" Spacing="10">
-        <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Grid.Column="0"
-                       x:Name="TitleText"
-                       Text="OCR 识别结果"
-                       FontSize="15"
-                       FontWeight="SemiBold"
-                       VerticalAlignment="Center"
-                       PointerPressed="OnTitlePointerPressed"
-                       Cursor="SizeAll"/>
-            <Button Grid.Column="1"
-                    x:Name="CloseButton"
-                    Content="✕"
-                    Padding="10,3"
-                    Click="OnCloseClick"/>
-        </Grid>
-        <TextBlock x:Name="StatusText"
-                   Text="正在准备..."
-                   Foreground="Gray"
-                   FontSize="12"
-                   TextWrapping="Wrap"/>
-        <TextBox x:Name="ResultText"
-                 TextWrapping="Wrap"
-                 AcceptsReturn="True"
-                 IsReadOnly="True"
-                 MinHeight="120"
-                 MaxHeight="240"
-                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button x:Name="CopyButton" Content="复制" Padding="18,6" Click="OnCopyClick"/>
+        ShowInTaskbar="False"
+        CanResize="False">
+    <Window.Styles>
+        <Style Selector="Button.ocr-close">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#8890A0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.ocr-close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14202838"/>
+            <Setter Property="Foreground" Value="#1F2430"/>
+        </Style>
+        <Style Selector="Button.ocr-close:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1F2A3448"/>
+        </Style>
+        <Style Selector="Button.ocr-primary">
+            <Setter Property="Background" Value="#2A5B8A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.ocr-primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#356EA3"/>
+        </Style>
+        <Style Selector="Button.ocr-primary:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1F4A73"/>
+        </Style>
+        <Style Selector="Button.ocr-primary:disabled">
+            <Setter Property="Opacity" Value="0.45"/>
+        </Style>
+        <Style Selector="Button.ocr-ghost">
+            <Setter Property="Background" Value="#F0F2F5"/>
+            <Setter Property="Foreground" Value="#3A4252"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.ocr-ghost:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E4E7EC"/>
+        </Style>
+        <Style Selector="Button.ocr-ghost:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#D8DCE3"/>
+        </Style>
+        <Style Selector="TextBox.ocr-result">
+            <Setter Property="Background" Value="#F4F6F8"/>
+            <Setter Property="Foreground" Value="#1B2230"/>
+            <Setter Property="BorderBrush" Value="#E3E7EE"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="LineHeight" Value="22"/>
+            <Setter Property="CaretBrush" Value="#2A5B8A"/>
+            <Setter Property="SelectionBrush" Value="#402A5B8A"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Background="#FFFFFFF5"
+            BorderBrush="#18000000"
+            BorderThickness="1"
+            CornerRadius="16"
+            BoxShadow="0 16 40 0 #59000000"
+            ClipToBounds="True">
+        <StackPanel>
+            <!-- 标题栏（可拖拽） -->
+            <Border Background="#FAFBFC"
+                    BorderBrush="#EEF1F5"
+                    BorderThickness="0,0,0,1"
+                    Padding="18,14,12,14"
+                    PointerPressed="OnTitlePointerPressed"
+                    Cursor="SizeAll">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock x:Name="TitleText"
+                                   Text="OCR 识别结果"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="#151A24"/>
+                        <Border HorizontalAlignment="Left"
+                                Background="#EDF2F7"
+                                CornerRadius="999"
+                                Padding="8,2">
+                            <TextBlock x:Name="StatusText"
+                                       Text="正在准备..."
+                                       Foreground="#5B6577"
+                                       FontSize="11.5"/>
+                        </Border>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            x:Name="CloseButton"
+                            Classes="ocr-close"
+                            Content="✕"
+                            VerticalAlignment="Top"
+                            Click="OnCloseClick"/>
+                </Grid>
+            </Border>
+
+            <StackPanel Margin="18,16,18,18" Spacing="14">
+                <TextBox x:Name="ResultText"
+                         Classes="ocr-result"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         IsReadOnly="True"
+                         MinWidth="400"
+                         MinHeight="140"
+                         MaxHeight="280"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock x:Name="MetaText"
+                               Grid.Column="0"
+                               Text=""
+                               Foreground="#8A93A3"
+                               FontSize="11.5"
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                Spacing="8"
+                                HorizontalAlignment="Right">
+                        <Button x:Name="CloseActionButton"
+                                Classes="ocr-ghost"
+                                Content="关闭"
+                                Click="OnCloseClick"/>
+                        <Button x:Name="CopyButton"
+                                Classes="ocr-primary"
+                                Content="复制文本"
+                                Padding="18,8"
+                                Click="OnCopyClick"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
         </StackPanel>
-    </StackPanel>
+    </Border>
 </Window>
